@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#041E42">
+<title>Actualización de taller · Scania</title>
+<style>
+  :root{
+    --azul:#041E42; --azul-claro:#123A6B; --tinta:#0A1626;
+    --rojo:#E1261C; --hivis:#FFD100; --verde:#12703C;
+    --lienzo:#EDF0F4; --papel:#FFFFFF; --linea:#D3DAE3; --gris:#5C6A7C;
+    --radio:14px;
+    --barra: calc(76px + env(safe-area-inset-bottom));
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--lienzo); color:var(--tinta);
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding-bottom:var(--barra);
+  }
+  h1,h2,h3{margin:0;letter-spacing:-.015em}
+
+  /* ---- Encabezado ---------------------------------------------- */
+  header{position:sticky;top:0;z-index:20;background:var(--azul);color:#fff;
+    padding:14px 16px 0;padding-top:calc(14px + env(safe-area-inset-top))}
+  header .franja{position:absolute;left:0;right:0;top:0;height:4px;
+    background:repeating-linear-gradient(115deg,var(--hivis) 0 12px,var(--azul) 12px 24px)}
+  .taller{font-size:19px;font-weight:800;line-height:1.2}
+  .zona{font-size:12px;text-transform:uppercase;letter-spacing:.13em;color:#9FB4D0;margin-top:3px}
+  .pasos{display:flex;gap:5px;padding:12px 0 10px;overflow-x:auto;scrollbar-width:none}
+  .pasos::-webkit-scrollbar{display:none}
+  .chip{flex:1 0 auto;min-width:26px;height:5px;border-radius:3px;background:#294A75}
+  .chip.hecho{background:var(--hivis)}
+  .chip.actual{background:#fff}
+
+  /* ---- Contenido ----------------------------------------------- */
+  main{padding:18px 16px 8px;max-width:640px;margin:0 auto}
+  .paso{display:none}
+  .paso.visible{display:block;animation:entra .18s ease-out}
+  @keyframes entra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .rotulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;
+    color:var(--gris);margin-bottom:6px}
+  .pregunta{font-size:25px;font-weight:800;line-height:1.15;margin-bottom:6px}
+  .ayuda{color:var(--gris);font-size:14px;margin-bottom:18px}
+
+  .tarjeta{background:var(--papel);border:1px solid var(--linea);border-radius:var(--radio);
+    padding:16px;margin-bottom:12px}
+  .tarjeta.pendiente{border-left:5px solid var(--hivis)}
+  .tarjeta.listo{border-left:5px solid var(--verde)}
+  .puesto{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gris)}
+  .persona{font-size:19px;font-weight:700;margin-top:4px}
+  .dato{font-size:14px;color:var(--gris);margin-top:2px;word-break:break-word}
+  .vacio{color:var(--rojo);font-weight:600}
+
+  .par{display:flex;gap:10px;margin-top:14px}
+  .btn{border:0;border-radius:12px;font-size:16px;font-weight:700;padding:15px 12px;
+    cursor:pointer;font-family:inherit;min-height:52px}
+  .btn:focus-visible{outline:3px solid var(--hivis);outline-offset:2px}
+  .btn.si{flex:1;background:var(--verde);color:#fff}
+  .btn.no{flex:1;background:#E6EAF0;color:var(--tinta)}
+  .btn.fantasma{background:transparent;color:var(--azul);border:2px dashed #A9B6C6;width:100%}
+  .btn.quitar{background:transparent;color:var(--rojo);padding:8px 0;font-size:14px;min-height:0}
+
+  label{display:block;font-size:13px;font-weight:600;color:var(--gris);margin:12px 0 5px}
+  input,select,textarea{width:100%;font:16px/1.4 inherit;padding:13px 12px;border:1.5px solid var(--linea);
+    border-radius:11px;background:#fff;color:var(--tinta)}
+  input:focus,select:focus,textarea:focus{outline:0;border-color:var(--azul);box-shadow:0 0 0 3px #041E4222}
+  input.mal{border-color:var(--rojo);background:#FFF5F5}
+
+  /* ---- Contador ------------------------------------------------- */
+  .contador{display:flex;align-items:center;gap:14px;background:var(--papel);
+    border:1px solid var(--linea);border-radius:var(--radio);padding:12px 14px;margin-bottom:12px}
+  .contador .txt{flex:1}
+  .contador .txt b{display:block;font-size:16px}
+  .contador .txt span{font-size:13px;color:var(--gris)}
+  .mas,.menos{width:52px;height:52px;border-radius:50%;border:2px solid var(--azul);background:#fff;
+    color:var(--azul);font-size:26px;font-weight:700;line-height:1;cursor:pointer}
+  .mas:active,.menos:active{background:var(--azul);color:#fff}
+  .cifra{min-width:44px;text-align:center;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+
+  .aviso{background:#FFF8DC;border:1px solid #E8CF7A;border-radius:12px;padding:12px 14px;
+    font-size:14px;margin-bottom:14px}
+  .aviso.error{background:#FFF0EF;border-color:#F2B4B0;color:#8C1710}
+  .resumen{background:var(--papel);border:1px solid var(--linea);border-radius:var(--radio);overflow:hidden}
+  .resumen div{display:flex;justify-content:space-between;gap:14px;padding:12px 14px;
+    border-bottom:1px solid #EEF1F5;font-size:15px}
+  .resumen div:last-child{border-bottom:0}
+  .resumen span:first-child{color:var(--gris)}
+  .resumen span:last-child{font-weight:700;text-align:right}
+
+  /* ---- Barra inferior ------------------------------------------- */
+  .barra{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;
+    border-top:1px solid var(--linea);padding:12px 16px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;
+    max-width:640px;margin:0 auto}
+  .barra .atras{background:#EEF1F5;color:var(--tinta);width:96px}
+  .barra .seguir{flex:1;background:var(--azul);color:#fff}
+  .barra .seguir[disabled]{background:#A9B6C6;cursor:not-allowed}
+  .barra .enviar{flex:1;background:var(--rojo);color:#fff}
+
+  .estado{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--barra) + 10px);
+    background:var(--tinta);color:#fff;padding:9px 16px;border-radius:22px;font-size:13px;
+    z-index:40;opacity:0;transition:opacity .2s;pointer-events:none}
+  .estado.ver{opacity:.94}
+
+  .centro{text-align:center;padding:48px 24px}
+  .centro .marca{font-size:52px;line-height:1}
+  .oculto{display:none !important}
+  @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="franja"></div>
+  <div class="taller" id="hTaller">Cargando…</div>
+  <div class="zona" id="hZona"></div>
+  <div class="pasos" id="hPasos"></div>
+</header>
+
+<main>
+  <!-- Carga / errores -->
+  <section class="paso visible" id="p_carga">
+    <div class="centro">
+      <div class="marca">⏳</div>
+      <h2 style="margin-top:14px">Abriendo tu formulario</h2>
+      <p class="ayuda">Un momento.</p>
+    </div>
+  </section>
+
+  <section class="paso" id="p_error">
+    <div class="centro">
+      <div class="marca">⚠️</div>
+      <h2 style="margin-top:14px" id="errTitulo">No se pudo abrir</h2>
+      <p class="ayuda" id="errTexto"></p>
+    </div>
+  </section>
+
+  <!-- 1. Inicio -->
+  <section class="paso" id="p1">
+    <div class="rotulo">Actualización quincenal</div>
+    <div class="pregunta" id="saludo">Hola</div>
+    <p class="ayuda">Son 6 pantallas cortas. Se guarda solo, así que puedes salir y volver con el mismo enlace.</p>
+    <div class="tarjeta">
+      <div class="puesto">Contestas como</div>
+      <div class="persona" id="quienSoy"></div>
+      <label for="respondePor">Si no eres tú, escribe tu nombre</label>
+      <input id="respondePor" autocomplete="name" placeholder="Nombre de quien contesta">
+    </div>
+  </section>
+
+  <!-- 2. Jefe del día (solo si escaló) -->
+  <section class="paso" id="p2">
+    <div class="rotulo">Obligatorio</div>
+    <div class="pregunta">¿Quién quedó a cargo del taller hoy?</div>
+    <p class="ayuda">Este formulario se te envió porque no contestó el jefe de taller. Necesitamos saber quién está a cargo hoy.</p>
+    <div class="tarjeta">
+      <label for="jdNombre">Nombre completo</label>
+      <input id="jdNombre" autocomplete="name" placeholder="Nombre y apellido">
+      <label for="jdTel">Teléfono (10 dígitos)</label>
+      <input id="jdTel" type="tel" inputmode="numeric" maxlength="14" placeholder="4491234567">
+      <label for="jdCorreo">Correo (opcional)</label>
+      <input id="jdCorreo" type="email" inputmode="email" autocapitalize="off" placeholder="nombre@scania.com">
+    </div>
+  </section>
+
+  <!-- 3. Directorio -->
+  <section class="paso" id="p3">
+    <div class="rotulo">Directorio</div>
+    <div class="pregunta">¿Siguen siendo las mismas personas?</div>
+    <p class="ayuda">Revisa uno por uno. Si nada cambió, son cuatro toques.</p>
+    <div id="listaDirectorio"></div>
+  </section>
+
+  <!-- 4. Asistencia -->
+  <section class="paso" id="p4">
+    <div class="rotulo">Número de asistencia</div>
+    <div class="pregunta">Teléfono al que llama un cliente varado</div>
+    <p class="ayuda">Es el número que contesta la guardia del taller. Sin correo.</p>
+    <div class="tarjeta">
+      <label for="asisTel">Teléfono (10 dígitos)</label>
+      <input id="asisTel" type="tel" inputmode="numeric" maxlength="14" placeholder="4491234567">
+    </div>
+  </section>
+
+  <!-- 5. Capacidad -->
+  <section class="paso" id="p5">
+    <div class="rotulo">Capacidad</div>
+    <div class="pregunta">Camionetas y técnicos de hoy</div>
+    <p class="ayuda">Usa los botones. Si te equivocas, vuelve a tocar.</p>
+    <div class="contador">
+      <button class="menos" data-c="camTot" data-d="-1" aria-label="Menos camionetas">−</button>
+      <div class="cifra" id="v_camTot">0</div>
+      <button class="mas" data-c="camTot" data-d="1" aria-label="Más camionetas">+</button>
+      <div class="txt"><b>Camionetas en total</b><span>Las que tiene asignadas el taller</span></div>
+    </div>
+    <div class="contador">
+      <button class="menos" data-c="camFuera" data-d="-1" aria-label="Menos camionetas fuera">−</button>
+      <div class="cifra" id="v_camFuera">0</div>
+      <button class="mas" data-c="camFuera" data-d="1" aria-label="Más camionetas fuera">+</button>
+      <div class="txt"><b>Fuera de servicio</b><span>Descompuestas, en taller o sin operador</span></div>
+    </div>
+    <div class="contador">
+      <button class="menos" data-c="tecnicos" data-d="-1" aria-label="Menos técnicos">−</button>
+      <div class="cifra" id="v_tecnicos">0</div>
+      <button class="mas" data-c="tecnicos" data-d="1" aria-label="Más técnicos">+</button>
+      <div class="txt"><b>Técnicos activos</b><span>Los que están trabajando hoy</span></div>
+    </div>
+    <div class="aviso error oculto" id="avisoCam">No puede haber más camionetas fuera de servicio que camionetas en total.</div>
+    <div class="aviso" id="avisoOperativas"></div>
+  </section>
+
+  <!-- 6. Novedades -->
+  <section class="paso" id="p6">
+    <div class="rotulo">Novedades de personal</div>
+    <div class="pregunta">¿Alguien de vacaciones, ausente o dado de baja?</div>
+    <p class="ayuda">Si no hay nadie, pasa a la siguiente pantalla.</p>
+    <div id="listaNovedades"></div>
+    <button class="btn fantasma" id="masNovedad">+ Agregar persona</button>
+  </section>
+
+  <!-- 7. Guardias -->
+  <section class="paso" id="p7">
+    <div class="rotulo">Guardias</div>
+    <div class="pregunta">¿Quién cubre la guardia?</div>
+    <p class="ayuda">Agrega a quien esté de turno fuera del horario normal.</p>
+    <div id="listaGuardias"></div>
+    <button class="btn fantasma" id="masGuardia">+ Agregar guardia</button>
+    <div class="tarjeta" style="margin-top:16px">
+      <div class="puesto">Presencia de jefatura</div>
+      <div class="persona" style="font-size:17px">¿Hay más de un jefe presente en el taller?</div>
+      <div class="par">
+        <button class="btn si" id="jefes_si">Sí, más de uno</button>
+        <button class="btn no" id="jefes_no">No, solo uno</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Revisión -->
+  <section class="paso" id="p8">
+    <div class="rotulo">Último paso</div>
+    <div class="pregunta">Revisa y envía</div>
+    <p class="ayuda">Si algo está mal, regresa con el botón de atrás.</p>
+    <div class="resumen" id="resumen"></div>
+    <label for="comentarios">Algo más que debamos saber (opcional)</label>
+    <textarea id="comentarios" rows="3" placeholder="Comentarios"></textarea>
+    <div class="aviso error oculto" id="avisoEnvio"></div>
+  </section>
+
+  <!-- Fin -->
+  <section class="paso" id="p_fin">
+    <div class="centro">
+      <div class="marca">✅</div>
+      <h2 style="margin-top:14px">Listo, quedó registrado</h2>
+      <p class="ayuda" id="finTexto">Gracias. Ya no recibirás más recordatorios de este ciclo.</p>
+    </div>
+  </section>
+</main>
+
+<div class="barra" id="barra">
+  <button class="btn atras" id="btnAtras">Atrás</button>
+  <button class="btn seguir" id="btnSeguir">Continuar</button>
+</div>
+
+<div class="estado" id="estado"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------------------------------------------------------------- */
+/* Parámetros del enlace                                             */
+/* ---------------------------------------------------------------- */
+var qs = new URLSearchParams(location.search);
+var TOKEN = qs.get('t') || '';
+/* La URL de la Web App puede venir en el enlace o quedar fija aquí. */
+var API = qs.get('api') || 'PEGA_AQUI_LA_URL_DE_LA_WEB_APP';
+
+var ROLES = ['JEFE_TALLER','COORDINADOR','GERENTE_SERVICIO','GERENTE_REGIONAL'];
+var ETIQUETA = {
+  JEFE_TALLER:'Jefe de Taller', COORDINADOR:'Coordinador',
+  GERENTE_SERVICIO:'Gerente de Servicio', GERENTE_REGIONAL:'Gerente Regional'
+};
+var TIPOS_NOVEDAD = ['Vacaciones','Ausencia','Incapacidad','Baja','Permiso'];
+var TURNOS = ['Nocturno','Fin de semana','Día festivo','Cobertura extra'];
+
+/* ---------------------------------------------------------------- */
+/* Estado                                                            */
+/* ---------------------------------------------------------------- */
+var info = null;
+var escalado = false;
+var pasos = [];
+var indice = 0;
+var LLAVE = 'scania_taller_' + TOKEN;
+
+var datos = {
+  respondido_por:'',
+  jefe_del_dia:{nombre:'',telefono:'',correo:''},
+  directorio:{},
+  confirmado:{},
+  asistencia_telefono:'',
+  camionetas_totales:0, camionetas_fuera:0, tecnicos_activos:0,
+  novedades:[], guardias:[], mas_de_un_jefe:null, comentarios:''
+};
+
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------------------------------------------------------------- */
+/* Transporte: POST simple y, si falla, JSONP                        */
+/* ---------------------------------------------------------------- */
+function llamar(accion, cuerpo){
+  var carga = Object.assign({a:accion, t:TOKEN}, cuerpo || {});
+  return fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},  // evita el preflight CORS
+    body: JSON.stringify(carga),
+    redirect:'follow'
+  }).then(function(r){ return r.json(); })
+    .catch(function(){ return jsonp(carga); });
+}
+
+function jsonp(carga){
+  return new Promise(function(res, rej){
+    var nombre = 'cb' + Date.now() + Math.floor(Math.random()*1000);
+    var partes = [];
+    Object.keys(carga).forEach(function(k){
+      var v = carga[k];
+      partes.push(encodeURIComponent(k) + '=' +
+        encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : v));
+    });
+    partes.push('callback=' + nombre);
+    var s = document.createElement('script');
+    var reloj = setTimeout(function(){ limpiar(); rej(new Error('tiempo agotado')); }, 25000);
+    function limpiar(){ clearTimeout(reloj); delete window[nombre]; if(s.parentNode) s.parentNode.removeChild(s); }
+    window[nombre] = function(d){ limpiar(); res(d); };
+    s.onerror = function(){ limpiar(); rej(new Error('sin conexión')); };
+    s.src = API + (API.indexOf('?')<0?'?':'&') + partes.join('&');
+    document.body.appendChild(s);
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/* Utilidades                                                        */
+/* ---------------------------------------------------------------- */
+function avisar(texto, ms){
+  var e = $('estado'); e.textContent = texto; e.classList.add('ver');
+  clearTimeout(avisar._t);
+  avisar._t = setTimeout(function(){ e.classList.remove('ver'); }, ms || 1800);
+}
+function soloDigitos(v){ return String(v||'').replace(/\D/g,''); }
+function telOk(v){ var d = soloDigitos(v); return d.length===10 || (d.length===12 && d.indexOf('52')===0); }
+function limpio(v){ return String(v==null?'':v).trim(); }
+
+/* ---------------------------------------------------------------- */
+/* Guardado                                                          */
+/* ---------------------------------------------------------------- */
+function guardarLocal(){
+  try{ localStorage.setItem(LLAVE, JSON.stringify({datos:datos, indice:indice})); }catch(e){}
+}
+var pendienteRemoto = null;
+function guardarRemoto(){
+  clearTimeout(pendienteRemoto);
+  pendienteRemoto = setTimeout(function(){
+    llamar('parcial', {d:datos, pct:porcentaje()}).catch(function(){});
+  }, 1200);
+}
+function guardar(){ guardarLocal(); guardarRemoto(); }
+
+function porcentaje(){
+  var total = pasos.length - 1, hechos = 0;
+  if (limpio(datos.respondido_por)) hechos++;
+  if (!escalado || (limpio(datos.jefe_del_dia.nombre) && telOk(datos.jefe_del_dia.telefono))) hechos++;
+  if (ROLES.every(function(r){ return datos.confirmado[r]; })) hechos++;
+  if (telOk(datos.asistencia_telefono)) hechos++;
+  if (datos.camionetas_totales > 0 || datos.tecnicos_activos > 0) hechos++;
+  if (datos.mas_de_un_jefe !== null) hechos++;
+  return Math.min(99, Math.round(hechos / Math.max(total,1) * 100));
+}
+
+/* ---------------------------------------------------------------- */
+/* Arranque                                                          */
+/* ---------------------------------------------------------------- */
+function arrancar(){
+  if (!TOKEN){ mostrarError('Falta el enlace personal','Abre el enlace tal como te llegó por WhatsApp.'); return; }
+  llamar('cargar', {}).then(function(r){
+    if (!r || !r.ok){
+      var m = {
+        ENLACE_INVALIDO:['Enlace no válido','Este enlace ya no sirve. Pide uno nuevo por WhatsApp.'],
+        CICLO_CERRADO:['Periodo cerrado','Esta ronda de actualización ya cerró. Avisa a Asistencia.']
+      }[r && r.error] || ['No se pudo abrir', (r && r.error) || 'Revisa tu conexión e intenta otra vez.'];
+      mostrarError(m[0], m[1]);
+      return;
+    }
+    info = r;
+    escalado = !!r.escalado;
+    if (r.ya_respondida){ ir('p_fin'); $('barra').classList.add('oculto'); return; }
+    preparar(r);
+  }).catch(function(){
+    mostrarError('Sin conexión','No pudimos conectar. Revisa tu señal y vuelve a abrir el enlace.');
+  });
+}
+
+function mostrarError(titulo, texto){
+  $('errTitulo').textContent = titulo;
+  $('errTexto').textContent = texto;
+  ir('p_error');
+  $('barra').classList.add('oculto');
+}
+
+function preparar(r){
+  $('hTaller').textContent = r.taller.nombre;
+  $('hZona').textContent = r.taller.zona || '';
+  $('saludo').textContent = 'Hola' + (r.destinatario.nombre ? ', ' + r.destinatario.nombre.split(' ')[0] : '');
+  $('quienSoy').textContent = (r.destinatario.nombre || '—') + ' · ' + r.destinatario.rol_texto;
+  datos.respondido_por = r.destinatario.nombre || '';
+  $('respondePor').value = datos.respondido_por;
+
+  ROLES.forEach(function(rol){
+    var actual = (r.directorio[rol] && r.directorio[rol][0]) || {nombre:'',telefono:'',correo:''};
+    datos.directorio[rol] = {nombre:actual.nombre||'', telefono:actual.telefono||'', correo:actual.correo||''};
+    datos.confirmado[rol] = false;
+  });
+  datos.asistencia_telefono = r.directorio.ASISTENCIA || '';
+  datos.camionetas_totales = r.taller.camionetas_catalogo || 0;
+
+  // Retoma el borrador: primero el del servidor, si no el del celular.
+  var previo = r.borrador || leerLocal();
+  if (previo && previo.datos) Object.assign(datos, previo.datos);
+  else if (previo) Object.assign(datos, previo);
+
+  pasos = ['p1'];
+  if (escalado) pasos.push('p2');
+  pasos = pasos.concat(['p3','p4','p5','p6','p7','p8']);
+  pintarPasos();
+
+  $('asisTel').value = datos.asistencia_telefono;
+  $('respondePor').value = datos.respondido_por;
+  $('jdNombre').value = datos.jefe_del_dia.nombre;
+  $('jdTel').value = datos.jefe_del_dia.telefono;
+  $('jdCorreo').value = datos.jefe_del_dia.correo;
+  $('comentarios').value = datos.comentarios;
+  refrescarContadores();
+  pintarDirectorio();
+  pintarNovedades();
+  pintarGuardias();
+  pintarJefes();
+
+  var guardado = leerLocal();
+  indice = (guardado && guardado.indice && guardado.indice < pasos.length) ? guardado.indice : 0;
+  $('barra').classList.remove('oculto');
+  render();
+}
+
+function leerLocal(){
+  try{ return JSON.parse(localStorage.getItem(LLAVE) || 'null'); }catch(e){ return null; }
+}
+
+/* ---------------------------------------------------------------- */
+/* Navegación                                                        */
+/* ---------------------------------------------------------------- */
+function ir(id){
+  Array.prototype.forEach.call(document.querySelectorAll('.paso'), function(s){
+    s.classList.toggle('visible', s.id === id);
+  });
+  window.scrollTo(0,0);
+}
+
+function pintarPasos(){
+  var c = $('hPasos'); c.innerHTML = '';
+  pasos.forEach(function(){ var d = document.createElement('div'); d.className='chip'; c.appendChild(d); });
+}
+
+function render(){
+  ir(pasos[indice]);
+  Array.prototype.forEach.call($('hPasos').children, function(ch,i){
+    ch.className = 'chip' + (i < indice ? ' hecho' : (i === indice ? ' actual' : ''));
+  });
+  $('btnAtras').style.visibility = indice === 0 ? 'hidden' : 'visible';
+  var ultimo = indice === pasos.length - 1;
+  var b = $('btnSeguir');
+  b.textContent = ultimo ? 'Enviar' : 'Continuar';
+  b.className = 'btn ' + (ultimo ? 'enviar' : 'seguir');
+  if (pasos[indice] === 'p8') pintarResumen();
+  guardarLocal();
+}
+
+$('btnAtras').onclick = function(){ if (indice > 0){ indice--; render(); } };
+
+$('btnSeguir').onclick = function(){
+  var falla = validarPaso(pasos[indice]);
+  if (falla){ avisar(falla, 2600); return; }
+  if (indice === pasos.length - 1){ enviar(); return; }
+  indice++; render(); guardar();
+};
+
+function validarPaso(id){
+  if (id === 'p1'){
+    datos.respondido_por = limpio($('respondePor').value) || (info.destinatario.nombre || '');
+    if (!datos.respondido_por) return 'Escribe tu nombre para continuar.';
+  }
+  if (id === 'p2'){
+    datos.jefe_del_dia = {
+      nombre: limpio($('jdNombre').value),
+      telefono: limpio($('jdTel').value),
+      correo: limpio($('jdCorreo').value)
+    };
+    if (!datos.jefe_del_dia.nombre) { marcar('jdNombre'); return 'Falta el nombre del jefe a cargo hoy.'; }
+    if (!telOk(datos.jefe_del_dia.telefono)) { marcar('jdTel'); return 'El teléfono debe tener 10 dígitos.'; }
+  }
+  if (id === 'p3'){
+    var falta = ROLES.filter(function(r){ return !datos.confirmado[r]; });
+    if (falta.length) return 'Falta revisar: ' + ETIQUETA[falta[0]] + '.';
+  }
+  if (id === 'p4'){
+    datos.asistencia_telefono = limpio($('asisTel').value);
+    if (!telOk(datos.asistencia_telefono)) { marcar('asisTel'); return 'El teléfono debe tener 10 dígitos.'; }
+  }
+  if (id === 'p5'){
+    if (datos.camionetas_fuera > datos.camionetas_totales) return 'Hay más camionetas fuera que en total.';
+  }
+  if (id === 'p6'){
+    for (var i=0;i<datos.novedades.length;i++){
+      if (!limpio(datos.novedades[i].persona)) return 'Escribe el nombre de la persona ' + (i+1) + ' o quítala.';
+    }
+  }
+  if (id === 'p7'){
+    for (var j=0;j<datos.guardias.length;j++){
+      if (!limpio(datos.guardias[j].persona)) return 'Escribe el nombre de la guardia ' + (j+1) + ' o quítala.';
+    }
+    if (datos.mas_de_un_jefe === null) return 'Contesta si hay más de un jefe presente.';
+  }
+  return null;
+}
+
+function marcar(id){
+  var e = $(id); e.classList.add('mal');
+  e.focus();
+  setTimeout(function(){ e.classList.remove('mal'); }, 2500);
+}
+
+/* ---------------------------------------------------------------- */
+/* Directorio: confirmar o corregir                                  */
+/* ---------------------------------------------------------------- */
+function pintarDirectorio(){
+  var cont = $('listaDirectorio'); cont.innerHTML = '';
+  ROLES.forEach(function(rol){
+    var d = datos.directorio[rol];
+    var t = document.createElement('div');
+    t.className = 'tarjeta ' + (datos.confirmado[rol] ? 'listo' : 'pendiente');
+
+    var vacio = !limpio(d.nombre);
+    t.innerHTML =
+      '<div class="puesto">' + ETIQUETA[rol] + '</div>' +
+      '<div class="persona">' + (vacio ? '<span class="vacio">Sin registro</span>' : escapar(d.nombre)) + '</div>' +
+      '<div class="dato">' + (d.telefono ? escapar(d.telefono) : '<span class="vacio">sin teléfono</span>') +
+        (d.correo ? ' · ' + escapar(d.correo) : '') + '</div>';
+
+    var par = document.createElement('div'); par.className = 'par';
+    var si = document.createElement('button');
+    si.className = 'btn si'; si.textContent = datos.confirmado[rol] ? '✓ Confirmado' : 'Sí, es correcto';
+    si.disabled = vacio;
+    if (vacio) si.style.opacity = .4;
+    si.onclick = function(){ datos.confirmado[rol] = true; guardar(); pintarDirectorio(); };
+    var no = document.createElement('button');
+    no.className = 'btn no'; no.textContent = vacio ? 'Capturar datos' : 'Cambió';
+    no.onclick = function(){ editor(rol, t); };
+    par.appendChild(si); par.appendChild(no);
+    t.appendChild(par);
+    cont.appendChild(t);
+  });
+}
+
+function editor(rol, tarjeta){
+  var d = datos.directorio[rol];
+  var caja = document.createElement('div');
+  caja.innerHTML =
+    '<label>Nombre completo</label><input class="e_nom" autocomplete="name" value="'+ escapar(d.nombre) +'">' +
+    '<label>Teléfono (10 dígitos)</label><input class="e_tel" type="tel" inputmode="numeric" maxlength="14" value="'+ escapar(d.telefono) +'">' +
+    '<label>Correo (opcional)</label><input class="e_cor" type="email" inputmode="email" autocapitalize="off" value="'+ escapar(d.correo) +'">';
+  var par = document.createElement('div'); par.className = 'par';
+  var ok = document.createElement('button'); ok.className='btn si'; ok.textContent='Guardar cambio';
+  ok.onclick = function(){
+    var nom = limpio(caja.querySelector('.e_nom').value);
+    var tel = limpio(caja.querySelector('.e_tel').value);
+    if (!nom){ avisar('Falta el nombre.'); return; }
+    if (!telOk(tel)){ avisar('El teléfono debe tener 10 dígitos.'); return; }
+    datos.directorio[rol] = {nombre:nom, telefono:tel, correo:limpio(caja.querySelector('.e_cor').value)};
+    datos.confirmado[rol] = true;
+    guardar(); pintarDirectorio();
+  };
+  var cancelar = document.createElement('button'); cancelar.className='btn no'; cancelar.textContent='Cancelar';
+  cancelar.onclick = function(){ pintarDirectorio(); };
+  par.appendChild(ok); par.appendChild(cancelar);
+  caja.appendChild(par);
+  tarjeta.querySelector('.par').remove();
+  tarjeta.appendChild(caja);
+  caja.querySelector('.e_nom').focus();
+}
+
+function escapar(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/* Contadores                                                        */
+/* ---------------------------------------------------------------- */
+var MAPA = {camTot:'camionetas_totales', camFuera:'camionetas_fuera', tecnicos:'tecnicos_activos'};
+Array.prototype.forEach.call(document.querySelectorAll('[data-c]'), function(b){
+  b.onclick = function(){
+    var campo = MAPA[b.dataset.c];
+    var v = (datos[campo] || 0) + Number(b.dataset.d);
+    datos[campo] = Math.max(0, Math.min(99, v));
+    refrescarContadores(); guardar();
+  };
+});
+
+function refrescarContadores(){
+  $('v_camTot').textContent = datos.camionetas_totales;
+  $('v_camFuera').textContent = datos.camionetas_fuera;
+  $('v_tecnicos').textContent = datos.tecnicos_activos;
+  var mal = datos.camionetas_fuera > datos.camionetas_totales;
+  $('avisoCam').classList.toggle('oculto', !mal);
+  $('avisoOperativas').textContent = mal ? '' :
+    'Quedan ' + (datos.camionetas_totales - datos.camionetas_fuera) + ' camionetas operativas.';
+  $('avisoOperativas').classList.toggle('oculto', mal);
+}
+
+/* ---------------------------------------------------------------- */
+/* Novedades                                                         */
+/* ---------------------------------------------------------------- */
+$('masNovedad').onclick = function(){
+  datos.novedades.push({persona:'',puesto:'',tipo:'Vacaciones',desde:'',hasta:'',cubierto_por:''});
+  pintarNovedades(); guardar();
+};
+
+function pintarNovedades(){
+  var c = $('listaNovedades'); c.innerHTML = '';
+  datos.novedades.forEach(function(n, i){
+    var t = document.createElement('div'); t.className = 'tarjeta';
+    t.innerHTML =
+      '<div class="puesto">Persona ' + (i+1) + '</div>' +
+      '<label>Nombre</label><input class="n_per" value="'+ escapar(n.persona) +'" placeholder="Nombre y apellido">' +
+      '<label>Puesto</label><input class="n_pue" value="'+ escapar(n.puesto) +'" placeholder="Técnico, asesor…">' +
+      '<label>Motivo</label><select class="n_tip">' +
+        TIPOS_NOVEDAD.map(function(x){ return '<option'+(n.tipo===x?' selected':'')+'>'+x+'</option>'; }).join('') +
+      '</select>' +
+      '<label>Desde</label><input class="n_des" type="date" value="'+ escapar(n.desde) +'">' +
+      '<label>Hasta (si aplica)</label><input class="n_has" type="date" value="'+ escapar(n.hasta) +'">' +
+      '<label>Quién lo cubre</label><input class="n_cub" value="'+ escapar(n.cubierto_por) +'" placeholder="Opcional">';
+    var quitar = document.createElement('button');
+    quitar.className = 'btn quitar'; quitar.textContent = 'Quitar esta persona';
+    quitar.onclick = function(){ datos.novedades.splice(i,1); pintarNovedades(); guardar(); };
+    t.appendChild(quitar);
+    t.addEventListener('input', function(){
+      n.persona = t.querySelector('.n_per').value;
+      n.puesto  = t.querySelector('.n_pue').value;
+      n.tipo    = t.querySelector('.n_tip').value;
+      n.desde   = t.querySelector('.n_des').value;
+      n.hasta   = t.querySelector('.n_has').value;
+      n.cubierto_por = t.querySelector('.n_cub').value;
+      guardar();
+    });
+    c.appendChild(t);
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/* Guardias                                                          */
+/* ---------------------------------------------------------------- */
+$('masGuardia').onclick = function(){
+  datos.guardias.push({persona:'',puesto:'',telefono:'',turno:'Nocturno',desde:'',hasta:'',es_jefe:false});
+  pintarGuardias(); guardar();
+};
+
+function pintarGuardias(){
+  var c = $('listaGuardias'); c.innerHTML = '';
+  datos.guardias.forEach(function(g, i){
+    var t = document.createElement('div'); t.className = 'tarjeta';
+    t.innerHTML =
+      '<div class="puesto">Guardia ' + (i+1) + '</div>' +
+      '<label>Nombre</label><input class="g_per" value="'+ escapar(g.persona) +'" placeholder="Nombre y apellido">' +
+      '<label>Puesto</label><input class="g_pue" value="'+ escapar(g.puesto) +'" placeholder="Técnico, jefe…">' +
+      '<label>Teléfono</label><input class="g_tel" type="tel" inputmode="numeric" maxlength="14" value="'+ escapar(g.telefono) +'">' +
+      '<label>Turno</label><select class="g_tur">' +
+        TURNOS.map(function(x){ return '<option'+(g.turno===x?' selected':'')+'>'+x+'</option>'; }).join('') +
+      '</select>' +
+      '<label>Desde</label><input class="g_des" type="date" value="'+ escapar(g.desde) +'">' +
+      '<label>Hasta</label><input class="g_has" type="date" value="'+ escapar(g.hasta) +'">';
+    var par = document.createElement('div'); par.className = 'par';
+    var esJefe = document.createElement('button');
+    esJefe.className = 'btn ' + (g.es_jefe ? 'si' : 'no');
+    esJefe.textContent = g.es_jefe ? '✓ Es jefe de taller' : '¿Es jefe de taller?';
+    esJefe.onclick = function(){ g.es_jefe = !g.es_jefe; pintarGuardias(); guardar(); };
+    par.appendChild(esJefe);
+    t.appendChild(par);
+    var quitar = document.createElement('button');
+    quitar.className = 'btn quitar'; quitar.textContent = 'Quitar esta guardia';
+    quitar.onclick = function(){ datos.guardias.splice(i,1); pintarGuardias(); guardar(); };
+    t.appendChild(quitar);
+    t.addEventListener('input', function(){
+      g.persona = t.querySelector('.g_per').value;
+      g.puesto  = t.querySelector('.g_pue').value;
+      g.telefono= t.querySelector('.g_tel').value;
+      g.turno   = t.querySelector('.g_tur').value;
+      g.desde   = t.querySelector('.g_des').value;
+      g.hasta   = t.querySelector('.g_has').value;
+      guardar();
+    });
+    c.appendChild(t);
+  });
+}
+
+$('jefes_si').onclick = function(){ datos.mas_de_un_jefe = true;  pintarJefes(); guardar(); };
+$('jefes_no').onclick = function(){ datos.mas_de_un_jefe = false; pintarJefes(); guardar(); };
+function pintarJefes(){
+  $('jefes_si').className = 'btn ' + (datos.mas_de_un_jefe === true  ? 'si' : 'no');
+  $('jefes_no').className = 'btn ' + (datos.mas_de_un_jefe === false ? 'si' : 'no');
+}
+
+/* ---------------------------------------------------------------- */
+/* Resumen y envío                                                   */
+/* ---------------------------------------------------------------- */
+function pintarResumen(){
+  var r = $('resumen'); r.innerHTML = '';
+  var filas = [];
+  if (escalado) filas.push(['Jefe a cargo hoy', datos.jefe_del_dia.nombre]);
+  ROLES.forEach(function(rol){ filas.push([ETIQUETA[rol], datos.directorio[rol].nombre || '—']); });
+  filas.push(['Número de asistencia', datos.asistencia_telefono]);
+  filas.push(['Camionetas', datos.camionetas_totales + ' total · ' + datos.camionetas_fuera + ' fuera']);
+  filas.push(['Técnicos activos', String(datos.tecnicos_activos)]);
+  filas.push(['Novedades', datos.novedades.length ? datos.novedades.length + ' persona(s)' : 'ninguna']);
+  filas.push(['Guardias', datos.guardias.length ? datos.guardias.length + ' registro(s)' : 'ninguna']);
+  filas.push(['Más de un jefe', datos.mas_de_un_jefe ? 'Sí' : 'No']);
+  filas.forEach(function(f){
+    var d = document.createElement('div');
+    d.innerHTML = '<span>' + escapar(f[0]) + '</span><span>' + escapar(f[1]) + '</span>';
+    r.appendChild(d);
+  });
+}
+
+var enviando = false;
+function enviar(){
+  if (enviando) return;
+  enviando = true;
+  datos.comentarios = limpio($('comentarios').value);
+  var b = $('btnSeguir'); b.disabled = true; b.textContent = 'Enviando…';
+  $('avisoEnvio').classList.add('oculto');
+
+  llamar('enviar', {d:datos}).then(function(r){
+    if (r && r.ok){
+      try{ localStorage.removeItem(LLAVE); }catch(e){}
+      $('finTexto').textContent = r.mensaje || 'Gracias. Ya no recibirás más recordatorios de este ciclo.';
+      ir('p_fin');
+      $('barra').classList.add('oculto');
+      return;
+    }
+    var texto = {
+      FALTA_JEFE_DEL_DIA:'Falta el jefe de taller a cargo hoy.',
+      FALTA_JEFE_TALLER:'Falta el nombre del jefe de taller.',
+      FALTA_ASISTENCIA:'Falta el número de asistencia.',
+      FUERA_MAYOR_QUE_TOTAL:'Hay más camionetas fuera de servicio que camionetas en total.',
+      ENLACE_INVALIDO:'El enlace ya no es válido. Pide uno nuevo.',
+      CICLO_CERRADO:'Esta ronda ya cerró. Avisa a Asistencia.'
+    }[r && r.error] || 'No se pudo enviar. Intenta otra vez en un momento.';
+    fallo(texto);
+  }).catch(function(){
+    fallo('Sin conexión. Tus datos quedaron guardados en el teléfono: vuelve a abrir el enlace cuando tengas señal.');
+  });
+}
+
+function fallo(texto){
+  enviando = false;
+  var b = $('btnSeguir'); b.disabled = false; b.textContent = 'Enviar';
+  $('avisoEnvio').textContent = texto;
+  $('avisoEnvio').classList.remove('oculto');
+  guardarLocal();
+}
+
+/* Guarda al salir de la pantalla, por si cierran el navegador. */
+document.addEventListener('visibilitychange', function(){ if (document.hidden) guardarLocal(); });
+
+arrancar();
+})();
+</script>
+</body>
+</html>

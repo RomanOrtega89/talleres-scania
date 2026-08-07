@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#041E42">
+<title>Bandeja de envío · Talleres</title>
+<style>
+  :root{--azul:#041E42;--hivis:#FFD100;--verde:#12703C;--lienzo:#EDF0F4;--linea:#D3DAE3;--gris:#5C6A7C}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--lienzo);color:#0A1626;
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  header{background:var(--azul);color:#fff;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));position:relative}
+  header:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;
+    background:repeating-linear-gradient(115deg,var(--hivis) 0 12px,var(--azul) 12px 24px)}
+  h1{margin:0;font-size:19px;letter-spacing:-.01em}
+  .sub{font-size:12px;text-transform:uppercase;letter-spacing:.13em;color:#9FB4D0;margin-top:4px}
+  main{padding:16px;max-width:620px;margin:0 auto}
+  .fila{background:#fff;border:1px solid var(--linea);border-left:5px solid var(--hivis);
+    border-radius:14px;padding:14px;margin-bottom:12px}
+  .fila.listo{border-left-color:var(--verde);opacity:.55}
+  .taller{font-weight:800;font-size:17px}
+  .quien{color:var(--gris);font-size:14px;margin-top:3px}
+  a.wa,button.wa{display:block;width:100%;margin-top:12px;background:#25D366;color:#04321B;
+    text-align:center;text-decoration:none;font-weight:800;font-size:16px;padding:15px;
+    border:0;border-radius:12px;cursor:pointer;font-family:inherit}
+  .vacia{text-align:center;padding:56px 20px;color:var(--gris)}
+  .vacia .marca{font-size:48px}
+  .aviso{background:#FFF8DC;border:1px solid #E8CF7A;border-radius:12px;padding:12px 14px;
+    font-size:14px;margin-bottom:14px}
+  .barra{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--linea);padding:12px 16px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px}
+  .barra button{flex:1;border:0;border-radius:12px;padding:14px;font-weight:700;font-size:15px;
+    background:var(--azul);color:#fff;font-family:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>Bandeja de envío</h1>
+  <div class="sub" id="sub">Cargando…</div>
+</header>
+<main id="lista"></main>
+<div class="barra"><button id="recargar">Actualizar lista</button></div>
+
+<script>
+(function(){
+var qs = new URLSearchParams(location.search);
+var API = qs.get('api') || 'PEGA_AQUI_LA_URL_DE_LA_WEB_APP';
+var CLAVE = qs.get('k') || '';
+
+function jsonp(carga){
+  return new Promise(function(res, rej){
+    var nombre='cb'+Date.now()+Math.floor(Math.random()*1000);
+    var partes=Object.keys(carga).map(function(k){
+      return encodeURIComponent(k)+'='+encodeURIComponent(carga[k]);
+    });
+    partes.push('callback='+nombre);
+    var s=document.createElement('script');
+    var reloj=setTimeout(function(){limpiar();rej(new Error('tiempo'));},20000);
+    function limpiar(){clearTimeout(reloj);delete window[nombre];if(s.parentNode)s.parentNode.removeChild(s);}
+    window[nombre]=function(d){limpiar();res(d);};
+    s.onerror=function(){limpiar();rej(new Error('red'));};
+    s.src=API+(API.indexOf('?')<0?'?':'&')+partes.join('&');
+    document.body.appendChild(s);
+  });
+}
+
+function cargar(){
+  document.getElementById('sub').textContent='Cargando…';
+  jsonp({a:'bandeja', k:CLAVE}).then(pintar).catch(function(){
+    document.getElementById('sub').textContent='Sin conexión';
+  });
+}
+
+function pintar(r){
+  var lista=document.getElementById('lista');
+  lista.innerHTML='';
+  if(!r || !r.ok){
+    document.getElementById('sub').textContent='Error';
+    lista.innerHTML='<div class="vacia"><div class="marca">⚠️</div><p>'+
+      (r&&r.error==='CLAVE_INVALIDA'?'La clave del enlace no es válida. Ábrelo desde el menú Talleres → Ver enlaces del sistema.':'No se pudo cargar.')+'</p></div>';
+    return;
+  }
+  document.getElementById('sub').textContent = r.modo + ' · ' + r.pendientes.length + ' por enviar';
+  if(r.modo==='PRUEBA'){
+    var a=document.createElement('div'); a.className='aviso';
+    a.textContent='Modo prueba: todos los mensajes van a tu propio número, no a los talleres.';
+    lista.appendChild(a);
+  }
+  if(!r.pendientes.length){
+    lista.insertAdjacentHTML('beforeend',
+      '<div class="vacia"><div class="marca">📭</div><p>No hay mensajes pendientes.</p></div>');
+    return;
+  }
+  r.pendientes.forEach(function(p){
+    var d=document.createElement('div'); d.className='fila';
+    d.innerHTML='<div class="taller">'+esc(p.taller)+'</div>'+
+                '<div class="quien">'+esc(p.destinatario||'')+' · '+esc(p.telefono)+'</div>';
+    var a=document.createElement('a');
+    a.className='wa'; a.href=p.enlace; a.target='_blank'; a.rel='noopener';
+    a.textContent='Enviar por WhatsApp';
+    a.onclick=function(){
+      jsonp({a:'marcar', k:CLAVE, fila:p.fila}).catch(function(){});
+      d.className='fila listo'; a.textContent='Enviado ✓';
+    };
+    d.appendChild(a);
+    lista.appendChild(d);
+  });
+}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+document.getElementById('recargar').onclick=cargar;
+cargar();
+})();
+</script>
+</body>
+</html>
