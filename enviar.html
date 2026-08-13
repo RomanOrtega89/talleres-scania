@@ -45,7 +45,10 @@
 <script>
 (function(){
 var qs = new URLSearchParams(location.search);
-var API = qs.get('api') || 'PEGA_AQUI_LA_URL_DE_LA_WEB_APP';
+/* URL de la Web App. Edita esta linea con la real (la misma que en
+   index.html) despues de publicar. */
+var API_FIJA = 'PEGA_AQUI_LA_URL_DE_LA_WEB_APP';
+var API = qs.get('api') || API_FIJA;
 var CLAVE = qs.get('k') || '';
 
 function jsonp(carga){

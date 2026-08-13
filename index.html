@@ -62,6 +62,15 @@
   .btn.no{flex:1;background:#E6EAF0;color:var(--tinta)}
   .btn.fantasma{background:transparent;color:var(--azul);border:2px dashed #A9B6C6;width:100%}
   .btn.quitar{background:transparent;color:var(--rojo);padding:8px 0;font-size:14px;min-height:0}
+  .fila-tecnico{display:flex;gap:8px;margin-top:10px;align-items:center}
+  .fila-tecnico input{flex:1}
+  .btn.quitar-mini{flex:0 0 auto;background:#FFF0EF;color:var(--rojo);padding:0 14px;
+    min-height:48px;font-size:20px;line-height:1;border-radius:11px}
+  .dias-semana{display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap}
+  .dia-toggle{flex:1 0 auto;min-width:40px;padding:11px 4px;border-radius:9px;
+    border:1.5px solid var(--linea);background:#fff;color:var(--tinta);
+    font-weight:700;font-size:12px;text-align:center;cursor:pointer;font-family:inherit}
+  .dia-toggle.activo{background:var(--azul);border-color:var(--azul);color:#fff}
 
   label{display:block;font-size:13px;font-weight:600;color:var(--gris);margin:12px 0 5px}
   input,select,textarea{width:100%;font:16px/1.4 inherit;padding:13px 12px;border:1.5px solid var(--linea);
@@ -176,13 +185,11 @@
 
   <!-- 4. Asistencia -->
   <section class="paso" id="p4">
-    <div class="rotulo">Número de asistencia</div>
-    <div class="pregunta">Teléfono al que llama un cliente varado</div>
-    <p class="ayuda">Es el número que contesta la guardia del taller. Sin correo.</p>
-    <div class="tarjeta">
-      <label for="asisTel">Teléfono (10 dígitos)</label>
-      <input id="asisTel" type="tel" inputmode="numeric" maxlength="14" placeholder="4491234567">
-    </div>
+    <div class="rotulo">Números de asistencia</div>
+    <div class="pregunta">Teléfonos a los que llama un cliente varado</div>
+    <p class="ayuda">Los que contesta la guardia del taller. Puede ser uno o varios. Sin correo.</p>
+    <div id="listaAsistencia"></div>
+    <button class="btn fantasma" id="masAsistencia">+ Agregar otro número</button>
   </section>
 
   <!-- 5. Capacidad -->
@@ -221,16 +228,12 @@
     <button class="btn fantasma" id="masNovedad">+ Agregar persona</button>
   </section>
 
-  <!-- 7. Guardias -->
+  <!-- 7. Presencia de jefatura -->
   <section class="paso" id="p7">
-    <div class="rotulo">Guardias</div>
-    <div class="pregunta">¿Quién cubre la guardia?</div>
-    <p class="ayuda">Agrega a quien esté de turno fuera del horario normal.</p>
-    <div id="listaGuardias"></div>
-    <button class="btn fantasma" id="masGuardia">+ Agregar guardia</button>
-    <div class="tarjeta" style="margin-top:16px">
-      <div class="puesto">Presencia de jefatura</div>
-      <div class="persona" style="font-size:17px">¿Hay más de un jefe presente en el taller?</div>
+    <div class="rotulo">Presencia de jefatura</div>
+    <div class="pregunta">¿Hay más de un jefe presente en el taller?</div>
+    <p class="ayuda">Esto es sobre hoy, no sobre la guardia de la semana (eso se captura aparte, en el calendario semanal).</p>
+    <div class="tarjeta">
       <div class="par">
         <button class="btn si" id="jefes_si">Sí, más de uno</button>
         <button class="btn no" id="jefes_no">No, solo uno</button>
@@ -247,6 +250,18 @@
     <label for="comentarios">Algo más que debamos saber (opcional)</label>
     <textarea id="comentarios" rows="3" placeholder="Comentarios"></textarea>
     <div class="aviso error oculto" id="avisoEnvio"></div>
+  </section>
+
+  <!-- Calendario semanal de guardias (familia GUARDIA, formulario aparte) -->
+  <section class="paso" id="pg_calendario">
+    <div class="rotulo">Guardia semanal</div>
+    <div class="pregunta">¿Quiénes están de guardia esta semana?</div>
+    <p class="ayuda">Solo tú ves esta información: no sube a nadie más. Agrega a cada persona y marca los días que le tocan. Pueden ser una, dos o las que hagan falta.</p>
+    <div id="listaPersonasGuardia"></div>
+    <button class="btn fantasma" id="masPersonaGuardia">+ Agregar persona</button>
+    <label for="gComentario">Algo más que debamos saber (opcional)</label>
+    <textarea id="gComentario" rows="2" placeholder="Comentarios"></textarea>
+    <div class="aviso error oculto" id="avisoGuardiaEnvio"></div>
   </section>
 
   <!-- Fin -->
@@ -276,7 +291,13 @@
 var qs = new URLSearchParams(location.search);
 var TOKEN = qs.get('t') || '';
 /* La URL de la Web App puede venir en el enlace o quedar fija aquí. */
-var API = qs.get('api') || 'PEGA_AQUI_LA_URL_DE_LA_WEB_APP';
+/* URL de la Web App de Apps Script. Se edita UNA sola vez, aqui mismo,
+   despues de publicar (menu Talleres -> 2. Ver enlaces del sistema).
+   Al tenerla aqui, el enlace que llega por WhatsApp ya no necesita
+   cargarla como parametro: queda mucho mas corto. El parametro ?api=
+   sigue funcionando como respaldo manual (pruebas, enlaces viejos). */
+var API_FIJA = 'https://script.google.com/macros/s/AKfycbzX98R0d11Ingm-0k5uf7dnmOzUfSO8r9Bm7LX5E_qoN3dhTgv5_kAB0EjYkaPfHTEfQQ/exec';
+var API = qs.get('api') || API_FIJA;
 
 var ROLES = ['JEFE_TALLER','COORDINADOR','GERENTE_SERVICIO','GERENTE_REGIONAL'];
 var ETIQUETA = {
@@ -284,25 +305,27 @@ var ETIQUETA = {
   GERENTE_SERVICIO:'Gerente de Servicio', GERENTE_REGIONAL:'Gerente Regional'
 };
 var TIPOS_NOVEDAD = ['Vacaciones','Ausencia','Incapacidad','Baja','Permiso'];
-var TURNOS = ['Nocturno','Fin de semana','Día festivo','Cobertura extra'];
 
 /* ---------------------------------------------------------------- */
 /* Estado                                                            */
 /* ---------------------------------------------------------------- */
 var info = null;
 var escalado = false;
+var familiaActual = 'CAPACIDAD';
 var pasos = [];
 var indice = 0;
 var LLAVE = 'scania_taller_' + TOKEN;
+
+var datosGuardia = { respondido_por:'', personas:[], comentario:'' };
 
 var datos = {
   respondido_por:'',
   jefe_del_dia:{nombre:'',telefono:'',correo:''},
   directorio:{},
   confirmado:{},
-  asistencia_telefono:'',
+  asistencia_telefonos:[''],
   camionetas_totales:0, camionetas_fuera:0, tecnicos_activos:0,
-  novedades:[], guardias:[], mas_de_un_jefe:null, comentarios:''
+  novedades:[], mas_de_un_jefe:null, comentarios:''
 };
 
 var $ = function(id){ return document.getElementById(id); };
@@ -357,13 +380,22 @@ function limpio(v){ return String(v==null?'':v).trim(); }
 /* Guardado                                                          */
 /* ---------------------------------------------------------------- */
 function guardarLocal(){
-  try{ localStorage.setItem(LLAVE, JSON.stringify({datos:datos, indice:indice})); }catch(e){}
+  try{
+    var carga = familiaActual === 'GUARDIA'
+      ? {datosGuardia:datosGuardia, indice:indice}
+      : {datos:datos, indice:indice};
+    localStorage.setItem(LLAVE, JSON.stringify(carga));
+  }catch(e){}
 }
 var pendienteRemoto = null;
 function guardarRemoto(){
   clearTimeout(pendienteRemoto);
   pendienteRemoto = setTimeout(function(){
-    llamar('parcial', {d:datos, pct:porcentaje()}).catch(function(){});
+    if (familiaActual === 'GUARDIA'){
+      llamar('parcial', {d:datosGuardia, pct:porcentajeGuardia()}).catch(function(){});
+    } else {
+      llamar('parcial', {d:datos, pct:porcentaje()}).catch(function(){});
+    }
   }, 1200);
 }
 function guardar(){ guardarLocal(); guardarRemoto(); }
@@ -373,10 +405,18 @@ function porcentaje(){
   if (limpio(datos.respondido_por)) hechos++;
   if (!escalado || (limpio(datos.jefe_del_dia.nombre) && telOk(datos.jefe_del_dia.telefono))) hechos++;
   if (ROLES.every(function(r){ return datos.confirmado[r]; })) hechos++;
-  if (telOk(datos.asistencia_telefono)) hechos++;
+  if (datos.asistencia_telefonos.some(function(v){return telOk(v);})) hechos++;
   if (datos.camionetas_totales > 0 || datos.tecnicos_activos > 0) hechos++;
   if (datos.mas_de_un_jefe !== null) hechos++;
   return Math.min(99, Math.round(hechos / Math.max(total,1) * 100));
+}
+
+function porcentajeGuardia(){
+  var conAlguno = datosGuardia.personas.filter(function(p){
+    return limpio(p.nombre) && Object.keys(p.dias||{}).some(function(f){ return p.dias[f]; });
+  }).length;
+  if (!conAlguno) return 10;
+  return Math.min(90, 20 + conAlguno * 20);
 }
 
 /* ---------------------------------------------------------------- */
@@ -394,9 +434,10 @@ function arrancar(){
       return;
     }
     info = r;
+    familiaActual = r.familia === 'GUARDIA' ? 'GUARDIA' : 'CAPACIDAD';
     escalado = !!r.escalado;
     if (r.ya_respondida){ ir('p_fin'); $('barra').classList.add('oculto'); return; }
-    preparar(r);
+    if (familiaActual === 'GUARDIA') prepararGuardia(r); else preparar(r);
   }).catch(function(){
     mostrarError('Sin conexión','No pudimos conectar. Revisa tu señal y vuelve a abrir el enlace.');
   });
@@ -422,20 +463,22 @@ function preparar(r){
     datos.directorio[rol] = {nombre:actual.nombre||'', telefono:actual.telefono||'', correo:actual.correo||''};
     datos.confirmado[rol] = false;
   });
-  datos.asistencia_telefono = r.directorio.ASISTENCIA || '';
+  var numerosAsis = r.directorio.ASISTENCIA || [];
+  datos.asistencia_telefonos = numerosAsis.length ? numerosAsis.slice() : [''];
   datos.camionetas_totales = r.taller.camionetas_catalogo || 0;
 
   // Retoma el borrador: primero el del servidor, si no el del celular.
   var previo = r.borrador || leerLocal();
   if (previo && previo.datos) Object.assign(datos, previo.datos);
   else if (previo) Object.assign(datos, previo);
+  if (!datos.asistencia_telefonos || !datos.asistencia_telefonos.length) datos.asistencia_telefonos = [''];
 
   pasos = ['p1'];
   if (escalado) pasos.push('p2');
   pasos = pasos.concat(['p3','p4','p5','p6','p7','p8']);
   pintarPasos();
 
-  $('asisTel').value = datos.asistencia_telefono;
+  pintarAsistencia();
   $('respondePor').value = datos.respondido_por;
   $('jdNombre').value = datos.jefe_del_dia.nombre;
   $('jdTel').value = datos.jefe_del_dia.telefono;
@@ -444,13 +487,93 @@ function preparar(r){
   refrescarContadores();
   pintarDirectorio();
   pintarNovedades();
-  pintarGuardias();
   pintarJefes();
 
   var guardado = leerLocal();
   indice = (guardado && guardado.indice && guardado.indice < pasos.length) ? guardado.indice : 0;
   $('barra').classList.remove('oculto');
   render();
+}
+
+/**
+ * Flujo del calendario semanal de guardias: solo el Jefe de Taller lo ve,
+ * nunca escala. Es un formulario mucho mas corto: quien contesta + el
+ * calendario de la semana, y listo.
+ */
+function prepararGuardia(r){
+  $('hTaller').textContent = r.taller.nombre;
+  $('hZona').textContent = 'Semana del ' + r.semana_inicio + ' al ' + r.semana_fin;
+  $('saludo').textContent = 'Hola' + (r.destinatario.nombre ? ', ' + r.destinatario.nombre.split(' ')[0] : '');
+  $('quienSoy').textContent = (r.destinatario.nombre || '—') + ' · Jefe de Taller';
+  datosGuardia.respondido_por = r.destinatario.nombre || '';
+  $('respondePor').value = datosGuardia.respondido_por;
+
+  datosGuardia.personas = [nuevaPersonaGuardia()];
+  datosGuardia.comentario = '';
+
+  var previo = r.borrador || leerLocal();
+  if (previo && previo.datosGuardia) Object.assign(datosGuardia, previo.datosGuardia);
+  else if (previo) Object.assign(datosGuardia, previo);
+  if (!datosGuardia.personas || !datosGuardia.personas.length) datosGuardia.personas = [nuevaPersonaGuardia()];
+
+  pasos = ['p1', 'pg_calendario'];
+  pintarPasos();
+  pintarPersonasGuardia();
+  $('gComentario').value = datosGuardia.comentario;
+
+  var guardado = leerLocal();
+  indice = (guardado && guardado.indice && guardado.indice < pasos.length) ? guardado.indice : 0;
+  $('barra').classList.remove('oculto');
+  render();
+}
+
+/** Tarjeta nueva y vacía: un nombre y un día marcable por cada fecha de la semana. */
+function nuevaPersonaGuardia(){
+  var dias = {};
+  (info.dias || []).forEach(function(d){ dias[d.fecha] = false; });
+  return { nombre:'', dias: dias };
+}
+
+$('masPersonaGuardia').onclick = function(){
+  datosGuardia.personas.push(nuevaPersonaGuardia());
+  pintarPersonasGuardia(); guardar();
+};
+
+function pintarPersonasGuardia(){
+  var c = $('listaPersonasGuardia'); c.innerHTML = '';
+  datosGuardia.personas.forEach(function(p, pi){
+    var t = document.createElement('div'); t.className = 'tarjeta';
+    t.innerHTML = '<div class="puesto">Persona ' + (pi+1) + '</div>';
+
+    var label1 = document.createElement('label'); label1.textContent = 'Nombre o ID del técnico';
+    var nombreInput = document.createElement('input');
+    nombreInput.type = 'text'; nombreInput.value = p.nombre; nombreInput.placeholder = 'Nombre y apellido';
+    nombreInput.addEventListener('input', function(){ p.nombre = nombreInput.value; guardar(); });
+    t.appendChild(label1); t.appendChild(nombreInput);
+
+    var label2 = document.createElement('label'); label2.textContent = 'Días de guardia';
+    t.appendChild(label2);
+    var filaDias = document.createElement('div'); filaDias.className = 'dias-semana';
+    (info.dias || []).forEach(function(d){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dia-toggle' + (p.dias[d.fecha] ? ' activo' : '');
+      b.textContent = d.nombre.substring(0, 2);
+      b.setAttribute('aria-label', d.nombre + ' ' + d.fecha);
+      b.onclick = function(){ p.dias[d.fecha] = !p.dias[d.fecha]; pintarPersonasGuardia(); guardar(); };
+      filaDias.appendChild(b);
+    });
+    t.appendChild(filaDias);
+
+    if (datosGuardia.personas.length > 1){
+      var quitar = document.createElement('button');
+      quitar.type = 'button'; quitar.className = 'btn quitar'; quitar.textContent = 'Quitar esta persona';
+      quitar.onclick = function(){ datosGuardia.personas.splice(pi,1); pintarPersonasGuardia(); guardar(); };
+      t.appendChild(quitar);
+    }
+
+    c.appendChild(t);
+  });
 }
 
 function leerLocal(){
@@ -491,14 +614,41 @@ $('btnAtras').onclick = function(){ if (indice > 0){ indice--; render(); } };
 $('btnSeguir').onclick = function(){
   var falla = validarPaso(pasos[indice]);
   if (falla){ avisar(falla, 2600); return; }
-  if (indice === pasos.length - 1){ enviar(); return; }
+  if (indice === pasos.length - 1){
+    if (familiaActual === 'GUARDIA') enviarGuardia(); else enviar();
+    return;
+  }
   indice++; render(); guardar();
 };
 
 function validarPaso(id){
   if (id === 'p1'){
+    if (familiaActual === 'GUARDIA'){
+      datosGuardia.respondido_por = limpio($('respondePor').value) || (info.destinatario.nombre || '');
+      if (!datosGuardia.respondido_por) return 'Escribe tu nombre para continuar.';
+      return null;
+    }
     datos.respondido_por = limpio($('respondePor').value) || (info.destinatario.nombre || '');
     if (!datos.respondido_por) return 'Escribe tu nombre para continuar.';
+  }
+  if (id === 'pg_calendario'){
+    datosGuardia.comentario = limpio($('gComentario').value);
+    datosGuardia.personas.forEach(function(p){ p.nombre = limpio(p.nombre); });
+    // Quita tarjetas vacias que hayan quedado de un "+Agregar" sin usar.
+    datosGuardia.personas = datosGuardia.personas.filter(function(p){
+      return p.nombre || Object.keys(p.dias||{}).some(function(f){ return p.dias[f]; });
+    });
+    if (!datosGuardia.personas.length){
+      datosGuardia.personas = [nuevaPersonaGuardia()];
+      pintarPersonasGuardia();
+      return 'Agrega al menos una persona con sus días de guardia.';
+    }
+    for (var pi=0; pi<datosGuardia.personas.length; pi++){
+      var p = datosGuardia.personas[pi];
+      if (!p.nombre) return 'Falta el nombre de la persona ' + (pi+1) + '.';
+      if (!Object.keys(p.dias||{}).some(function(f){ return p.dias[f]; })) return 'Marca al menos un día para ' + p.nombre + '.';
+    }
+    pintarPersonasGuardia();
   }
   if (id === 'p2'){
     datos.jefe_del_dia = {
@@ -514,8 +664,12 @@ function validarPaso(id){
     if (falta.length) return 'Falta revisar: ' + ETIQUETA[falta[0]] + '.';
   }
   if (id === 'p4'){
-    datos.asistencia_telefono = limpio($('asisTel').value);
-    if (!telOk(datos.asistencia_telefono)) { marcar('asisTel'); return 'El teléfono debe tener 10 dígitos.'; }
+    datos.asistencia_telefonos = datos.asistencia_telefonos.map(limpio).filter(function(v){ return v; });
+    if (!datos.asistencia_telefonos.length) { datos.asistencia_telefonos = ['']; pintarAsistencia(); return 'Captura al menos un número de asistencia.'; }
+    for (var ai=0; ai<datos.asistencia_telefonos.length; ai++){
+      if (!telOk(datos.asistencia_telefonos[ai])) return 'El número ' + (ai+1) + ' debe tener 10 dígitos.';
+    }
+    pintarAsistencia();
   }
   if (id === 'p5'){
     if (datos.camionetas_fuera > datos.camionetas_totales) return 'Hay más camionetas fuera que en total.';
@@ -526,9 +680,6 @@ function validarPaso(id){
     }
   }
   if (id === 'p7'){
-    for (var j=0;j<datos.guardias.length;j++){
-      if (!limpio(datos.guardias[j].persona)) return 'Escribe el nombre de la guardia ' + (j+1) + ' o quítala.';
-    }
     if (datos.mas_de_un_jefe === null) return 'Contesta si hay más de un jefe presente.';
   }
   return null;
@@ -669,56 +820,41 @@ function pintarNovedades(){
 }
 
 /* ---------------------------------------------------------------- */
-/* Guardias                                                          */
-/* ---------------------------------------------------------------- */
-$('masGuardia').onclick = function(){
-  datos.guardias.push({persona:'',puesto:'',telefono:'',turno:'Nocturno',desde:'',hasta:'',es_jefe:false});
-  pintarGuardias(); guardar();
-};
-
-function pintarGuardias(){
-  var c = $('listaGuardias'); c.innerHTML = '';
-  datos.guardias.forEach(function(g, i){
-    var t = document.createElement('div'); t.className = 'tarjeta';
-    t.innerHTML =
-      '<div class="puesto">Guardia ' + (i+1) + '</div>' +
-      '<label>Nombre</label><input class="g_per" value="'+ escapar(g.persona) +'" placeholder="Nombre y apellido">' +
-      '<label>Puesto</label><input class="g_pue" value="'+ escapar(g.puesto) +'" placeholder="Técnico, jefe…">' +
-      '<label>Teléfono</label><input class="g_tel" type="tel" inputmode="numeric" maxlength="14" value="'+ escapar(g.telefono) +'">' +
-      '<label>Turno</label><select class="g_tur">' +
-        TURNOS.map(function(x){ return '<option'+(g.turno===x?' selected':'')+'>'+x+'</option>'; }).join('') +
-      '</select>' +
-      '<label>Desde</label><input class="g_des" type="date" value="'+ escapar(g.desde) +'">' +
-      '<label>Hasta</label><input class="g_has" type="date" value="'+ escapar(g.hasta) +'">';
-    var par = document.createElement('div'); par.className = 'par';
-    var esJefe = document.createElement('button');
-    esJefe.className = 'btn ' + (g.es_jefe ? 'si' : 'no');
-    esJefe.textContent = g.es_jefe ? '✓ Es jefe de taller' : '¿Es jefe de taller?';
-    esJefe.onclick = function(){ g.es_jefe = !g.es_jefe; pintarGuardias(); guardar(); };
-    par.appendChild(esJefe);
-    t.appendChild(par);
-    var quitar = document.createElement('button');
-    quitar.className = 'btn quitar'; quitar.textContent = 'Quitar esta guardia';
-    quitar.onclick = function(){ datos.guardias.splice(i,1); pintarGuardias(); guardar(); };
-    t.appendChild(quitar);
-    t.addEventListener('input', function(){
-      g.persona = t.querySelector('.g_per').value;
-      g.puesto  = t.querySelector('.g_pue').value;
-      g.telefono= t.querySelector('.g_tel').value;
-      g.turno   = t.querySelector('.g_tur').value;
-      g.desde   = t.querySelector('.g_des').value;
-      g.hasta   = t.querySelector('.g_has').value;
-      guardar();
-    });
-    c.appendChild(t);
-  });
-}
-
 $('jefes_si').onclick = function(){ datos.mas_de_un_jefe = true;  pintarJefes(); guardar(); };
 $('jefes_no').onclick = function(){ datos.mas_de_un_jefe = false; pintarJefes(); guardar(); };
 function pintarJefes(){
   $('jefes_si').className = 'btn ' + (datos.mas_de_un_jefe === true  ? 'si' : 'no');
   $('jefes_no').className = 'btn ' + (datos.mas_de_un_jefe === false ? 'si' : 'no');
+}
+
+/* ---------------------------------------------------------------- */
+/* Numeros de asistencia (1, 2 o mas)                                */
+/* ---------------------------------------------------------------- */
+$('masAsistencia').onclick = function(){
+  datos.asistencia_telefonos.push('');
+  pintarAsistencia(); guardar();
+};
+
+function pintarAsistencia(){
+  var c = $('listaAsistencia'); c.innerHTML = '';
+  datos.asistencia_telefonos.forEach(function(tel, i){
+    var t = document.createElement('div'); t.className = 'tarjeta';
+    t.innerHTML =
+      '<div class="puesto">' + (i===0 ? 'Número principal' : 'Número adicional ' + i) + '</div>' +
+      '<label>Teléfono (10 dígitos)</label>' +
+      '<input class="a_tel" type="tel" inputmode="numeric" maxlength="14" value="'+ escapar(tel) +'" placeholder="4491234567">';
+    if (datos.asistencia_telefonos.length > 1){
+      var quitar = document.createElement('button');
+      quitar.className = 'btn quitar'; quitar.textContent = 'Quitar este número';
+      quitar.onclick = function(){ datos.asistencia_telefonos.splice(i,1); pintarAsistencia(); guardar(); };
+      t.appendChild(quitar);
+    }
+    t.addEventListener('input', function(){
+      datos.asistencia_telefonos[i] = t.querySelector('.a_tel').value;
+      guardar();
+    });
+    c.appendChild(t);
+  });
 }
 
 /* ---------------------------------------------------------------- */
@@ -729,11 +865,10 @@ function pintarResumen(){
   var filas = [];
   if (escalado) filas.push(['Jefe a cargo hoy', datos.jefe_del_dia.nombre]);
   ROLES.forEach(function(rol){ filas.push([ETIQUETA[rol], datos.directorio[rol].nombre || '—']); });
-  filas.push(['Número de asistencia', datos.asistencia_telefono]);
+  filas.push(['Números de asistencia', datos.asistencia_telefonos.join(', ')]);
   filas.push(['Camionetas', datos.camionetas_totales + ' total · ' + datos.camionetas_fuera + ' fuera']);
   filas.push(['Técnicos activos', String(datos.tecnicos_activos)]);
   filas.push(['Novedades', datos.novedades.length ? datos.novedades.length + ' persona(s)' : 'ninguna']);
-  filas.push(['Guardias', datos.guardias.length ? datos.guardias.length + ' registro(s)' : 'ninguna']);
   filas.push(['Más de un jefe', datos.mas_de_un_jefe ? 'Sí' : 'No']);
   filas.forEach(function(f){
     var d = document.createElement('div');
@@ -761,7 +896,7 @@ function enviar(){
     var texto = {
       FALTA_JEFE_DEL_DIA:'Falta el jefe de taller a cargo hoy.',
       FALTA_JEFE_TALLER:'Falta el nombre del jefe de taller.',
-      FALTA_ASISTENCIA:'Falta el número de asistencia.',
+      FALTA_ASISTENCIA:'Captura al menos un número de asistencia.',
       FUERA_MAYOR_QUE_TOTAL:'Hay más camionetas fuera de servicio que camionetas en total.',
       ENLACE_INVALIDO:'El enlace ya no es válido. Pide uno nuevo.',
       CICLO_CERRADO:'Esta ronda ya cerró. Avisa a Asistencia.'
@@ -777,6 +912,40 @@ function fallo(texto){
   var b = $('btnSeguir'); b.disabled = false; b.textContent = 'Enviar';
   $('avisoEnvio').textContent = texto;
   $('avisoEnvio').classList.remove('oculto');
+  guardarLocal();
+}
+
+var enviandoGuardia = false;
+function enviarGuardia(){
+  if (enviandoGuardia) return;
+  enviandoGuardia = true;
+  var b = $('btnSeguir'); b.disabled = true; b.textContent = 'Enviando…';
+  $('avisoGuardiaEnvio').classList.add('oculto');
+
+  llamar('enviar', {d:datosGuardia}).then(function(r){
+    if (r && r.ok){
+      try{ localStorage.removeItem(LLAVE); }catch(e){}
+      $('finTexto').textContent = r.mensaje || 'Gracias. Quedó registrado el calendario de guardias.';
+      ir('p_fin');
+      $('barra').classList.add('oculto');
+      return;
+    }
+    var texto = {
+      FALTA_CALENDARIO:'Agrega al menos una persona con sus días de guardia.',
+      ENLACE_INVALIDO:'El enlace ya no es válido. Pide uno nuevo.',
+      CICLO_CERRADO:'Esta semana ya cerró. Avisa a Asistencia.'
+    }[r && r.error] || 'No se pudo enviar. Intenta otra vez en un momento.';
+    falloGuardia(texto);
+  }).catch(function(){
+    falloGuardia('Sin conexión. Tus datos quedaron guardados en el teléfono: vuelve a abrir el enlace cuando tengas señal.');
+  });
+}
+
+function falloGuardia(texto){
+  enviandoGuardia = false;
+  var b = $('btnSeguir'); b.disabled = false; b.textContent = 'Enviar';
+  $('avisoGuardiaEnvio').textContent = texto;
+  $('avisoGuardiaEnvio').classList.remove('oculto');
   guardarLocal();
 }
 
