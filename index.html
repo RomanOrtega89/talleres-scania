@@ -149,9 +149,9 @@
 
   <!-- 1. Inicio -->
   <section class="paso" id="p1">
-    <div class="rotulo">Actualización quincenal</div>
+    <div class="rotulo" id="rotuloInicio">Actualización quincenal</div>
     <div class="pregunta" id="saludo">Hola</div>
-    <p class="ayuda">Son 6 pantallas cortas. Se guarda solo, así que puedes salir y volver con el mismo enlace.</p>
+    <p class="ayuda" id="ayudaInicio">Son 6 pantallas cortas. Se guarda solo, así que puedes salir y volver con el mismo enlace.</p>
     <div class="tarjeta">
       <div class="puesto">Contestas como</div>
       <div class="persona" id="quienSoy"></div>
@@ -376,6 +376,31 @@ function soloDigitos(v){ return String(v||'').replace(/\D/g,''); }
 function telOk(v){ var d = soloDigitos(v); return d.length===10 || (d.length===12 && d.indexOf('52')===0); }
 function limpio(v){ return String(v==null?'':v).trim(); }
 
+var MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio',
+  'agosto','septiembre','octubre','noviembre','diciembre'];
+
+/** "2026-08-10" -> "10 de agosto". Solo para mostrar, nunca para procesar. */
+function fechaLegible(iso){
+  var p = String(iso||'').split('-');
+  if (p.length < 3) return String(iso||'');
+  var dia = parseInt(p[2],10);
+  var mes = MESES_ES[parseInt(p[1],10)-1];
+  return mes ? (dia+' de '+mes) : String(iso);
+}
+
+/** "2026-08-10","2026-08-16" -> "10 al 16 de agosto" (o con mes/año si cambian). */
+function rangoLegible(inicioIso, finIso){
+  var pi = String(inicioIso||'').split('-'), pf = String(finIso||'').split('-');
+  if (pi.length<3 || pf.length<3) return String(inicioIso||'')+' al '+String(finIso||'');
+  var diaI=parseInt(pi[2],10), mesI=parseInt(pi[1],10), anioI=pi[0];
+  var diaF=parseInt(pf[2],10), mesF=parseInt(pf[1],10), anioF=pf[0];
+  var nombreI=MESES_ES[mesI-1], nombreF=MESES_ES[mesF-1];
+  if (!nombreI || !nombreF) return String(inicioIso)+' al '+String(finIso);
+  if (anioI===anioF && mesI===mesF) return diaI+' al '+diaF+' de '+nombreF;
+  if (anioI===anioF) return diaI+' de '+nombreI+' al '+diaF+' de '+nombreF;
+  return diaI+' de '+nombreI+' de '+anioI+' al '+diaF+' de '+nombreF+' de '+anioF;
+}
+
 /* ---------------------------------------------------------------- */
 /* Guardado                                                          */
 /* ---------------------------------------------------------------- */
@@ -453,6 +478,8 @@ function mostrarError(titulo, texto){
 function preparar(r){
   $('hTaller').textContent = r.taller.nombre;
   $('hZona').textContent = r.taller.zona || '';
+  $('rotuloInicio').textContent = 'Actualización quincenal';
+  $('ayudaInicio').textContent = 'Son 6 pantallas cortas. Se guarda solo, así que puedes salir y volver con el mismo enlace.';
   $('saludo').textContent = 'Hola' + (r.destinatario.nombre ? ', ' + r.destinatario.nombre.split(' ')[0] : '');
   $('quienSoy').textContent = (r.destinatario.nombre || '—') + ' · ' + r.destinatario.rol_texto;
   datos.respondido_por = r.destinatario.nombre || '';
@@ -502,7 +529,9 @@ function preparar(r){
  */
 function prepararGuardia(r){
   $('hTaller').textContent = r.taller.nombre;
-  $('hZona').textContent = 'Semana del ' + r.semana_inicio + ' al ' + r.semana_fin;
+  $('hZona').textContent = 'Semana del ' + (r.rango_legible || rangoLegible(r.semana_inicio, r.semana_fin));
+  $('rotuloInicio').textContent = 'Guardia semanal';
+  $('ayudaInicio').textContent = 'Son 2 pantallas cortas. Se guarda solo, así que puedes salir y volver con el mismo enlace.';
   $('saludo').textContent = 'Hola' + (r.destinatario.nombre ? ', ' + r.destinatario.nombre.split(' ')[0] : '');
   $('quienSoy').textContent = (r.destinatario.nombre || '—') + ' · Jefe de Taller';
   datosGuardia.respondido_por = r.destinatario.nombre || '';
@@ -559,7 +588,7 @@ function pintarPersonasGuardia(){
       b.type = 'button';
       b.className = 'dia-toggle' + (p.dias[d.fecha] ? ' activo' : '');
       b.textContent = d.nombre.substring(0, 2);
-      b.setAttribute('aria-label', d.nombre + ' ' + d.fecha);
+      b.setAttribute('aria-label', d.nombre + ' ' + fechaLegible(d.fecha));
       b.onclick = function(){ p.dias[d.fecha] = !p.dias[d.fecha]; pintarPersonasGuardia(); guardar(); };
       filaDias.appendChild(b);
     });
