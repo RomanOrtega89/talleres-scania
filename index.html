@@ -206,8 +206,8 @@
   <!-- 4. Asistencia -->
   <section class="paso" id="p4">
     <div class="rotulo">Números de asistencia</div>
-    <div class="pregunta">Teléfonos a los que llama un cliente varado</div>
-    <p class="ayuda">Los que contesta la guardia del taller. Puede ser uno o varios. Sin correo.</p>
+    <div class="pregunta">Teléfonos a los que se llama para coordinar con el técnico en guardia</div>
+    <p class="ayuda">Los que contesta la guardia del taller. Puede ser uno o varios, en relación a la cantidad de camionetas activas.</p>
     <div id="listaAsistencia"></div>
     <button class="btn fantasma" id="masAsistencia">+ Agregar otro número</button>
   </section>
@@ -233,7 +233,7 @@
       <button class="menos" data-c="tecnicos" data-d="-1" aria-label="Menos técnicos">−</button>
       <div class="cifra" id="v_tecnicos">0</div>
       <button class="mas" data-c="tecnicos" data-d="1" aria-label="Más técnicos">+</button>
-      <div class="txt"><b>Técnicos activos</b><span>Los que están trabajando hoy</span></div>
+      <div class="txt"><b>Técnicos activos</b><span>Los que están en guardia y activos</span></div>
     </div>
     <div class="aviso error oculto" id="avisoCam">No puede haber más camionetas fuera de servicio que camionetas en total.</div>
     <div class="aviso" id="avisoOperativas"></div>
@@ -271,7 +271,7 @@
   <section class="paso" id="pg_calendario">
     <div class="rotulo">Guardia semanal</div>
     <div class="pregunta">¿Quién cubre la guardia esta semana?</div>
-    <p class="ayuda" id="gAyuda">Solo tú ves esta información: no sube a nadie más.
+    <p class="ayuda" id="gAyuda">
       La guardia va de lunes a domingo de corrido. Si la cubren varias personas
       (turno día y noche, titular y respaldo), agrégalas todas.</p>
     <div id="listaPersonasGuardia"></div>
