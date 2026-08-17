@@ -61,16 +61,35 @@
   .btn.si{flex:1;background:var(--verde);color:#fff}
   .btn.no{flex:1;background:#E6EAF0;color:var(--tinta)}
   .btn.fantasma{background:transparent;color:var(--azul);border:2px dashed #A9B6C6;width:100%}
-  .btn.quitar{background:transparent;color:var(--rojo);padding:8px 0;font-size:14px;min-height:0}
-  .fila-tecnico{display:flex;gap:8px;margin-top:10px;align-items:center}
-  .fila-tecnico input{flex:1}
-  .btn.quitar-mini{flex:0 0 auto;background:#FFF0EF;color:var(--rojo);padding:0 14px;
-    min-height:48px;font-size:20px;line-height:1;border-radius:11px}
-  .dias-semana{display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap}
-  .dia-toggle{flex:1 0 auto;min-width:40px;padding:11px 4px;border-radius:9px;
-    border:1.5px solid var(--linea);background:#fff;color:var(--tinta);
-    font-weight:700;font-size:12px;text-align:center;cursor:pointer;font-family:inherit}
-  .dia-toggle.activo{background:var(--azul);border-color:var(--azul);color:#fff}
+  /* Botón de corregir: literal, no un icono que haya que adivinar. */
+  .btn.quitar{background:#FFF0EF;color:#8C1710;border:1.5px solid #F2B4B0;
+    width:100%;margin-top:12px;padding:13px 12px;font-size:14px;font-weight:700;
+    min-height:48px;line-height:1.3}
+
+  /* Grupo de un rol del directorio: puede tener 0, 1 o las personas que sea. */
+  .grupo{margin-bottom:22px}
+  .grupo-tit{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+    margin-bottom:8px}
+  .grupo-tit b{font-size:16px;font-weight:800}
+  .grupo-tit span{font-size:12px;color:var(--gris);font-weight:600;white-space:nowrap}
+  .tarjeta.baja{border-left:5px solid var(--rojo);background:#FBF7F7}
+  .tarjeta.baja .persona{text-decoration:line-through;color:var(--gris)}
+  .tarjeta.vacante{border-left:5px dashed #A9B6C6}
+  .marca-baja{font-size:13px;color:var(--rojo);font-weight:700;margin-top:8px}
+  .btn.fantasma.mini{padding:12px;font-size:14px;min-height:46px}
+  .btn.texto{background:transparent;color:var(--gris);padding:10px 0;font-size:13px;
+    min-height:0;width:100%;text-decoration:underline}
+
+  /* Casilla opcional (es jefe de taller / sigue vacante). */
+  .casilla{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px;
+    border:1.5px solid var(--linea);border-radius:11px;cursor:pointer;background:#fff}
+  .casilla.activa{border-color:var(--azul);background:#F2F6FC}
+  .casilla .cuadro{flex:0 0 auto;width:26px;height:26px;border-radius:7px;
+    border:2px solid var(--linea);display:flex;align-items:center;justify-content:center;
+    font-size:16px;font-weight:800;color:#fff;background:#fff}
+  .casilla.activa .cuadro{background:var(--azul);border-color:var(--azul)}
+  .casilla .txt{flex:1;font-size:14px;font-weight:600;color:var(--tinta)}
+  .casilla .txt small{display:block;font-weight:400;color:var(--gris);font-size:12px;margin-top:2px}
 
   label{display:block;font-size:13px;font-weight:600;color:var(--gris);margin:12px 0 5px}
   input,select,textarea{width:100%;font:16px/1.4 inherit;padding:13px 12px;border:1.5px solid var(--linea);
@@ -179,7 +198,8 @@
   <section class="paso" id="p3">
     <div class="rotulo">Directorio</div>
     <div class="pregunta">¿Siguen siendo las mismas personas?</div>
-    <p class="ayuda">Revisa uno por uno. Si nada cambió, son cuatro toques.</p>
+    <p class="ayuda">Revisa a cada persona. Si nada cambió, es un toque por cada una.
+      Si entró alguien nuevo o ya no está, se agrega o se quita aquí mismo.</p>
     <div id="listaDirectorio"></div>
   </section>
 
@@ -228,21 +248,14 @@
     <button class="btn fantasma" id="masNovedad">+ Agregar persona</button>
   </section>
 
-  <!-- 7. Presencia de jefatura -->
-  <section class="paso" id="p7">
-    <div class="rotulo">Presencia de jefatura</div>
-    <div class="pregunta">¿Hay más de un jefe presente en el taller?</div>
-    <p class="ayuda">Esto es sobre hoy, no sobre la guardia de la semana (eso se captura aparte, en el calendario semanal).</p>
-    <div class="tarjeta">
-      <div class="par">
-        <button class="btn si" id="jefes_si">Sí, más de uno</button>
-        <button class="btn no" id="jefes_no">No, solo uno</button>
-      </div>
-    </div>
-  </section>
+  <!-- La pantalla "¿Hay más de un jefe presente?" se quitó: ahora el
+       directorio (pantalla 3) acepta tantos jefes de taller como tenga la
+       sucursal, así que el dato queda implícito en la propia lista y
+       preguntarlo aparte era pedir dos veces lo mismo. La hoja Respuestas
+       lo reporta como jt_cantidad. -->
 
-  <!-- 8. Revisión -->
-  <section class="paso" id="p8">
+  <!-- 7. Revisión -->
+  <section class="paso" id="p7">
     <div class="rotulo">Último paso</div>
     <div class="pregunta">Revisa y envía</div>
     <p class="ayuda">Si algo está mal, regresa con el botón de atrás.</p>
@@ -252,15 +265,19 @@
     <div class="aviso error oculto" id="avisoEnvio"></div>
   </section>
 
-  <!-- Calendario semanal de guardias (familia GUARDIA, formulario aparte) -->
+  <!-- Guardia semanal (familia GUARDIA, formulario aparte).
+       La guardia se toma de lunes a domingo de corrido, así que no se
+       pregunta día por día: solo quién la cubre esa semana. -->
   <section class="paso" id="pg_calendario">
     <div class="rotulo">Guardia semanal</div>
-    <div class="pregunta">¿Quiénes están de guardia esta semana?</div>
-    <p class="ayuda">Solo tú ves esta información: no sube a nadie más. Agrega a cada persona y marca los días que le tocan. Pueden ser una, dos o las que hagan falta.</p>
+    <div class="pregunta">¿Quién cubre la guardia esta semana?</div>
+    <p class="ayuda" id="gAyuda">Solo tú ves esta información: no sube a nadie más.
+      La guardia va de lunes a domingo de corrido. Si la cubren varias personas
+      (turno día y noche, titular y respaldo), agrégalas todas.</p>
     <div id="listaPersonasGuardia"></div>
-    <button class="btn fantasma" id="masPersonaGuardia">+ Agregar persona</button>
-    <label for="gComentario">Algo más que debamos saber (opcional)</label>
-    <textarea id="gComentario" rows="2" placeholder="Comentarios"></textarea>
+    <button class="btn fantasma" id="masPersonaGuardia">+ Agregar otra persona</button>
+    <label for="gComentario">Información relevante para la guardia (opcional)</label>
+    <textarea id="gComentario" rows="3" placeholder="Cambios a media semana, teléfono alterno, algo que Asistencia deba saber si entra una emergencia…"></textarea>
     <div class="aviso error oculto" id="avisoGuardiaEnvio"></div>
   </section>
 
@@ -316,17 +333,26 @@ var pasos = [];
 var indice = 0;
 var LLAVE = 'scania_taller_' + TOKEN;
 
-var datosGuardia = { respondido_por:'', personas:[], comentario:'' };
+var datosGuardia = { respondido_por:'', personas:[], info_guardia:'' };
 
+/* El directorio es un mapa rol -> LISTA de personas. Un taller puede tener
+   dos o tres jefes, puede sumar uno, puede perder uno, y en los niveles de
+   arriba el puesto a veces queda vacante. Nada aquí supone que hay
+   exactamente una persona por rol. */
 var datos = {
   respondido_por:'',
   jefe_del_dia:{nombre:'',telefono:'',correo:''},
-  directorio:{},
-  confirmado:{},
+  directorio:{},   // rol -> [{orden, nombre, telefono, correo, estado, revisado}]
+  vacantes:{},     // rol -> true si confirmaron que el puesto está sin cubrir
   asistencia_telefonos:[''],
   camionetas_totales:0, camionetas_fuera:0, tecnicos_activos:0,
-  novedades:[], mas_de_un_jefe:null, comentarios:''
+  novedades:[], comentarios:''
 };
+
+/* Texto único para todos los botones de quitar. La versión anterior decía
+   solo "Quitar esta persona" y se leía como una acción del sistema (dar de
+   baja a alguien), no como "me equivoqué al capturar". */
+var TXT_CORREGIR = '¿Te equivocaste? Presiona aquí para quitar esta persona y corregir';
 
 var $ = function(id){ return document.getElementById(id); };
 
@@ -429,19 +455,16 @@ function porcentaje(){
   var total = pasos.length - 1, hechos = 0;
   if (limpio(datos.respondido_por)) hechos++;
   if (!escalado || (limpio(datos.jefe_del_dia.nombre) && telOk(datos.jefe_del_dia.telefono))) hechos++;
-  if (ROLES.every(function(r){ return datos.confirmado[r]; })) hechos++;
+  if (ROLES.every(function(r){ return rolRevisado(r); })) hechos++;
   if (datos.asistencia_telefonos.some(function(v){return telOk(v);})) hechos++;
   if (datos.camionetas_totales > 0 || datos.tecnicos_activos > 0) hechos++;
-  if (datos.mas_de_un_jefe !== null) hechos++;
   return Math.min(99, Math.round(hechos / Math.max(total,1) * 100));
 }
 
 function porcentajeGuardia(){
-  var conAlguno = datosGuardia.personas.filter(function(p){
-    return limpio(p.nombre) && Object.keys(p.dias||{}).some(function(f){ return p.dias[f]; });
-  }).length;
-  if (!conAlguno) return 10;
-  return Math.min(90, 20 + conAlguno * 20);
+  var conNombre = datosGuardia.personas.filter(function(p){ return limpio(p.nombre); }).length;
+  if (!conNombre) return 10;
+  return Math.min(90, 40 + conNombre * 25);
 }
 
 /* ---------------------------------------------------------------- */
@@ -479,16 +502,19 @@ function preparar(r){
   $('hTaller').textContent = r.taller.nombre;
   $('hZona').textContent = r.taller.zona || '';
   $('rotuloInicio').textContent = 'Actualización quincenal';
-  $('ayudaInicio').textContent = 'Son 6 pantallas cortas. Se guarda solo, así que puedes salir y volver con el mismo enlace.';
+  // El número de pantallas cambia si el formulario escaló (aparece la de
+  // "quién quedó a cargo hoy"), así que se dice el número real.
+  $('ayudaInicio').textContent = 'Son ' + (escalado ? 7 : 6) +
+    ' pantallas cortas. Se guarda solo, así que puedes salir y volver con el mismo enlace.';
   $('saludo').textContent = 'Hola' + (r.destinatario.nombre ? ', ' + r.destinatario.nombre.split(' ')[0] : '');
   $('quienSoy').textContent = (r.destinatario.nombre || '—') + ' · ' + r.destinatario.rol_texto;
   datos.respondido_por = r.destinatario.nombre || '';
   $('respondePor').value = datos.respondido_por;
 
   ROLES.forEach(function(rol){
-    var actual = (r.directorio[rol] && r.directorio[rol][0]) || {nombre:'',telefono:'',correo:''};
-    datos.directorio[rol] = {nombre:actual.nombre||'', telefono:actual.telefono||'', correo:actual.correo||''};
-    datos.confirmado[rol] = false;
+    var lista = (r.directorio && r.directorio[rol]) || [];
+    datos.directorio[rol] = lista.map(function(c){ return personaDirectorio(c); });
+    datos.vacantes[rol] = false;
   });
   var numerosAsis = r.directorio.ASISTENCIA || [];
   datos.asistencia_telefonos = numerosAsis.length ? numerosAsis.slice() : [''];
@@ -499,10 +525,11 @@ function preparar(r){
   if (previo && previo.datos) Object.assign(datos, previo.datos);
   else if (previo) Object.assign(datos, previo);
   if (!datos.asistencia_telefonos || !datos.asistencia_telefonos.length) datos.asistencia_telefonos = [''];
+  normalizarDirectorio(r);
 
   pasos = ['p1'];
   if (escalado) pasos.push('p2');
-  pasos = pasos.concat(['p3','p4','p5','p6','p7','p8']);
+  pasos = pasos.concat(['p3','p4','p5','p6','p7']);
   pintarPasos();
 
   pintarAsistencia();
@@ -514,7 +541,6 @@ function preparar(r){
   refrescarContadores();
   pintarDirectorio();
   pintarNovedades();
-  pintarJefes();
 
   var guardado = leerLocal();
   indice = (guardado && guardado.indice && guardado.indice < pasos.length) ? guardado.indice : 0;
@@ -538,17 +564,33 @@ function prepararGuardia(r){
   $('respondePor').value = datosGuardia.respondido_por;
 
   datosGuardia.personas = [nuevaPersonaGuardia()];
-  datosGuardia.comentario = '';
+  datosGuardia.info_guardia = '';
 
   var previo = r.borrador || leerLocal();
   if (previo && previo.datosGuardia) Object.assign(datosGuardia, previo.datosGuardia);
   else if (previo) Object.assign(datosGuardia, previo);
-  if (!datosGuardia.personas || !datosGuardia.personas.length) datosGuardia.personas = [nuevaPersonaGuardia()];
+
+  // Un borrador de la versión anterior traía días por persona y el
+  // comentario con otro nombre. Se rescata el nombre (que es lo único que
+  // sigue aplicando) en vez de descartar lo que ya había escrito.
+  datosGuardia.personas = (datosGuardia.personas || []).map(function(p){
+    return { nombre: (p && p.nombre) || '', es_jefe: !!(p && p.es_jefe) };
+  });
+  if (!datosGuardia.personas.length) datosGuardia.personas = [nuevaPersonaGuardia()];
+  if (typeof datosGuardia.info_guardia !== 'string'){
+    datosGuardia.info_guardia = (previo && previo.datosGuardia && previo.datosGuardia.comentario) || '';
+  }
+  delete datosGuardia.comentario;
+
+  $('gAyuda').textContent = 'Solo tú ves esta información: no sube a nadie más. ' +
+    'La guardia va de lunes a domingo de corrido (' +
+    (r.rango_legible || rangoLegible(r.semana_inicio, r.semana_fin)) + '). ' +
+    'Si la cubren varias personas, agrégalas todas.';
 
   pasos = ['p1', 'pg_calendario'];
   pintarPasos();
   pintarPersonasGuardia();
-  $('gComentario').value = datosGuardia.comentario;
+  $('gComentario').value = datosGuardia.info_guardia;
 
   var guardado = leerLocal();
   indice = (guardado && guardado.indice && guardado.indice < pasos.length) ? guardado.indice : 0;
@@ -556,11 +598,10 @@ function prepararGuardia(r){
   render();
 }
 
-/** Tarjeta nueva y vacía: un nombre y un día marcable por cada fecha de la semana. */
+/** Tarjeta nueva y vacía. La guardia es de lunes a domingo, así que solo
+    hace falta el nombre; lo de jefe de taller es opcional. */
 function nuevaPersonaGuardia(){
-  var dias = {};
-  (info.dias || []).forEach(function(d){ dias[d.fecha] = false; });
-  return { nombre:'', dias: dias };
+  return { nombre:'', es_jefe:false };
 }
 
 $('masPersonaGuardia').onclick = function(){
@@ -572,31 +613,30 @@ function pintarPersonasGuardia(){
   var c = $('listaPersonasGuardia'); c.innerHTML = '';
   datosGuardia.personas.forEach(function(p, pi){
     var t = document.createElement('div'); t.className = 'tarjeta';
-    t.innerHTML = '<div class="puesto">Persona ' + (pi+1) + '</div>';
+    t.innerHTML = '<div class="puesto">' +
+      (pi === 0 ? 'Quién cubre la guardia' : 'Persona ' + (pi+1)) + '</div>';
 
-    var label1 = document.createElement('label'); label1.textContent = 'Nombre o ID del técnico';
+    var lbl = document.createElement('label');
+    lbl.textContent = 'Nombre o ID del técnico';
     var nombreInput = document.createElement('input');
-    nombreInput.type = 'text'; nombreInput.value = p.nombre; nombreInput.placeholder = 'Nombre y apellido';
+    nombreInput.type = 'text'; nombreInput.value = p.nombre;
+    nombreInput.placeholder = 'Nombre y apellido';
     nombreInput.addEventListener('input', function(){ p.nombre = nombreInput.value; guardar(); });
-    t.appendChild(label1); t.appendChild(nombreInput);
+    t.appendChild(lbl); t.appendChild(nombreInput);
 
-    var label2 = document.createElement('label'); label2.textContent = 'Días de guardia';
-    t.appendChild(label2);
-    var filaDias = document.createElement('div'); filaDias.className = 'dias-semana';
-    (info.dias || []).forEach(function(d){
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'dia-toggle' + (p.dias[d.fecha] ? ' activo' : '');
-      b.textContent = d.nombre.substring(0, 2);
-      b.setAttribute('aria-label', d.nombre + ' ' + fechaLegible(d.fecha));
-      b.onclick = function(){ p.dias[d.fecha] = !p.dias[d.fecha]; pintarPersonasGuardia(); guardar(); };
-      filaDias.appendChild(b);
-    });
-    t.appendChild(filaDias);
+    // Opcional a propósito: en algunos talleres los jefes toman turno de
+    // guardia y en otros no. Si no se marca, simplemente no aplica.
+    var casilla = document.createElement('div');
+    casilla.className = 'casilla' + (p.es_jefe ? ' activa' : '');
+    casilla.innerHTML = '<div class="cuadro">' + (p.es_jefe ? '✓' : '') + '</div>' +
+      '<div class="txt">Es jefe de taller<small>Opcional. Márcalo solo si quien cubre es jefe de taller.</small></div>';
+    casilla.onclick = function(){ p.es_jefe = !p.es_jefe; pintarPersonasGuardia(); guardar(); };
+    t.appendChild(casilla);
 
     if (datosGuardia.personas.length > 1){
       var quitar = document.createElement('button');
-      quitar.type = 'button'; quitar.className = 'btn quitar'; quitar.textContent = 'Quitar esta persona';
+      quitar.type = 'button'; quitar.className = 'btn quitar';
+      quitar.textContent = TXT_CORREGIR;
       quitar.onclick = function(){ datosGuardia.personas.splice(pi,1); pintarPersonasGuardia(); guardar(); };
       t.appendChild(quitar);
     }
@@ -634,7 +674,7 @@ function render(){
   var b = $('btnSeguir');
   b.textContent = ultimo ? 'Enviar' : 'Continuar';
   b.className = 'btn ' + (ultimo ? 'enviar' : 'seguir');
-  if (pasos[indice] === 'p8') pintarResumen();
+  if (pasos[indice] === 'p7') pintarResumen();
   guardarLocal();
 }
 
@@ -661,21 +701,14 @@ function validarPaso(id){
     if (!datos.respondido_por) return 'Escribe tu nombre para continuar.';
   }
   if (id === 'pg_calendario'){
-    datosGuardia.comentario = limpio($('gComentario').value);
+    datosGuardia.info_guardia = limpio($('gComentario').value);
     datosGuardia.personas.forEach(function(p){ p.nombre = limpio(p.nombre); });
-    // Quita tarjetas vacias que hayan quedado de un "+Agregar" sin usar.
-    datosGuardia.personas = datosGuardia.personas.filter(function(p){
-      return p.nombre || Object.keys(p.dias||{}).some(function(f){ return p.dias[f]; });
-    });
+    // Quita tarjetas vacías que hayan quedado de un "+Agregar" sin usar.
+    datosGuardia.personas = datosGuardia.personas.filter(function(p){ return p.nombre; });
     if (!datosGuardia.personas.length){
       datosGuardia.personas = [nuevaPersonaGuardia()];
       pintarPersonasGuardia();
-      return 'Agrega al menos una persona con sus días de guardia.';
-    }
-    for (var pi=0; pi<datosGuardia.personas.length; pi++){
-      var p = datosGuardia.personas[pi];
-      if (!p.nombre) return 'Falta el nombre de la persona ' + (pi+1) + '.';
-      if (!Object.keys(p.dias||{}).some(function(f){ return p.dias[f]; })) return 'Marca al menos un día para ' + p.nombre + '.';
+      return 'Escribe quién cubre la guardia esta semana.';
     }
     pintarPersonasGuardia();
   }
@@ -689,7 +722,14 @@ function validarPaso(id){
     if (!telOk(datos.jefe_del_dia.telefono)) { marcar('jdTel'); return 'El teléfono debe tener 10 dígitos.'; }
   }
   if (id === 'p3'){
-    var falta = ROLES.filter(function(r){ return !datos.confirmado[r]; });
+    // Un jefe editándose a medias no cuenta como revisado: si no, se
+    // enviaría el nombre viejo creyendo que se guardó el nuevo.
+    var editando = ROLES.filter(function(r){
+      return (datos.directorio[r]||[]).some(function(p){ return p.editando; });
+    });
+    if (editando.length) return 'Guarda o cancela el cambio en ' + ETIQUETA[editando[0]] + '.';
+    if (!activosDe('JEFE_TALLER').length) return 'Tiene que quedar al menos un jefe de taller.';
+    var falta = ROLES.filter(function(r){ return !rolRevisado(r); });
     if (falta.length) return 'Falta revisar: ' + ETIQUETA[falta[0]] + '.';
   }
   if (id === 'p4'){
@@ -705,11 +745,12 @@ function validarPaso(id){
   }
   if (id === 'p6'){
     for (var i=0;i<datos.novedades.length;i++){
-      if (!limpio(datos.novedades[i].persona)) return 'Escribe el nombre de la persona ' + (i+1) + ' o quítala.';
+      var n = datos.novedades[i];
+      if (!limpio(n.persona)) return 'Escribe el nombre de la persona ' + (i+1) + ' o quítala.';
+      // Quién la cubre dejó de ser opcional: una ausencia sin relevo no le
+      // sirve a Asistencia cuando entra una emergencia.
+      if (!limpio(n.cubierto_por)) return 'Falta quién cubre a ' + limpio(n.persona) + '.';
     }
-  }
-  if (id === 'p7'){
-    if (datos.mas_de_un_jefe === null) return 'Contesta si hay más de un jefe presente.';
   }
   return null;
 }
@@ -723,60 +764,221 @@ function marcar(id){
 /* ---------------------------------------------------------------- */
 /* Directorio: confirmar o corregir                                  */
 /* ---------------------------------------------------------------- */
+/** Una fila del directorio del servidor -> una persona editable del formulario. */
+function personaDirectorio(c){
+  c = c || {};
+  return {
+    orden: c.orden || null,
+    nombre: c.nombre || '', telefono: c.telefono || '', correo: c.correo || '',
+    original: {nombre:c.nombre||'', telefono:c.telefono||'', correo:c.correo||''},
+    estado: 'CONFIRMADO', revisado: false, editando: false
+  };
+}
+
+/**
+ * Deja el directorio en la forma que espera esta versión del formulario.
+ *
+ * Hace falta porque un borrador guardado con la versión anterior traía un
+ * solo objeto por rol en vez de una lista. Sin esto, alguien que dejó el
+ * formulario a medias antes del cambio lo abriría roto -- y ese es
+ * justamente el caso en que menos ganas tendría de volver a empezar.
+ */
+function normalizarDirectorio(r){
+  datos.vacantes = datos.vacantes || {};
+  ROLES.forEach(function(rol){
+    var v = datos.directorio ? datos.directorio[rol] : null;
+    if (Array.isArray(v)){
+      datos.directorio[rol] = v.map(function(p){
+        if (!p || !p.original){
+          p = personaDirectorio(p);
+        }
+        return p;
+      });
+    } else if (v && typeof v === 'object'){
+      datos.directorio[rol] = [personaDirectorio(v)];
+    } else {
+      var lista = (r && r.directorio && r.directorio[rol]) || [];
+      datos.directorio[rol] = lista.map(function(c){ return personaDirectorio(c); });
+    }
+    if (typeof datos.vacantes[rol] !== 'boolean') datos.vacantes[rol] = false;
+  });
+  delete datos.confirmado;
+  delete datos.mas_de_un_jefe;
+}
+
+/** Personas de un rol que siguen en el taller (las bajas no cuentan). */
+function activosDe(rol){
+  return (datos.directorio[rol] || []).filter(function(p){ return p.estado !== 'BAJA'; });
+}
+
+/** Un rol está revisado si cada persona se revisó, o si se confirmó vacante. */
+function rolRevisado(rol){
+  var lista = datos.directorio[rol] || [];
+  if (!activosDe(rol).length) return !!datos.vacantes[rol];
+  return lista.every(function(p){ return p.revisado; });
+}
+
 function pintarDirectorio(){
   var cont = $('listaDirectorio'); cont.innerHTML = '';
   ROLES.forEach(function(rol){
-    var d = datos.directorio[rol];
-    var t = document.createElement('div');
-    t.className = 'tarjeta ' + (datos.confirmado[rol] ? 'listo' : 'pendiente');
+    var lista = datos.directorio[rol] || [];
+    var activos = activosDe(rol);
 
-    var vacio = !limpio(d.nombre);
-    t.innerHTML =
-      '<div class="puesto">' + ETIQUETA[rol] + '</div>' +
-      '<div class="persona">' + (vacio ? '<span class="vacio">Sin registro</span>' : escapar(d.nombre)) + '</div>' +
-      '<div class="dato">' + (d.telefono ? escapar(d.telefono) : '<span class="vacio">sin teléfono</span>') +
-        (d.correo ? ' · ' + escapar(d.correo) : '') + '</div>';
+    var grupo = document.createElement('div'); grupo.className = 'grupo';
+    var tit = document.createElement('div'); tit.className = 'grupo-tit';
+    tit.innerHTML = '<b>' + ETIQUETA[rol] + '</b><span>' +
+      (activos.length === 0 ? 'sin nadie asignado'
+        : activos.length === 1 ? '1 persona' : activos.length + ' personas') + '</span>';
+    grupo.appendChild(tit);
 
-    var par = document.createElement('div'); par.className = 'par';
-    var si = document.createElement('button');
-    si.className = 'btn si'; si.textContent = datos.confirmado[rol] ? '✓ Confirmado' : 'Sí, es correcto';
-    si.disabled = vacio;
-    if (vacio) si.style.opacity = .4;
-    si.onclick = function(){ datos.confirmado[rol] = true; guardar(); pintarDirectorio(); };
-    var no = document.createElement('button');
-    no.className = 'btn no'; no.textContent = vacio ? 'Capturar datos' : 'Cambió';
-    no.onclick = function(){ editor(rol, t); };
-    par.appendChild(si); par.appendChild(no);
-    t.appendChild(par);
-    cont.appendChild(t);
+    lista.forEach(function(p, i){ grupo.appendChild(tarjetaPersona(rol, p, i)); });
+
+    // Puesto sin nadie: se confirma explícitamente en vez de dejarlo en
+    // blanco, para poder distinguir "está vacante" de "no lo revisaron".
+    if (!activos.length) grupo.appendChild(tarjetaVacante(rol));
+
+    var mas = document.createElement('button');
+    mas.type = 'button'; mas.className = 'btn fantasma mini';
+    mas.textContent = '+ Agregar ' + (activos.length ? 'otro ' : '') + ETIQUETA[rol];
+    mas.onclick = function(){
+      datos.directorio[rol] = (datos.directorio[rol] || []);
+      datos.directorio[rol].push({orden:null, nombre:'', telefono:'', correo:'',
+        estado:'NUEVO', revisado:false, editando:true});
+      datos.vacantes[rol] = false;
+      pintarDirectorio(); guardar();
+    };
+    grupo.appendChild(mas);
+
+    cont.appendChild(grupo);
   });
 }
 
-function editor(rol, tarjeta){
-  var d = datos.directorio[rol];
-  var caja = document.createElement('div');
-  caja.innerHTML =
-    '<label>Nombre completo</label><input class="e_nom" autocomplete="name" value="'+ escapar(d.nombre) +'">' +
-    '<label>Teléfono (10 dígitos)</label><input class="e_tel" type="tel" inputmode="numeric" maxlength="14" value="'+ escapar(d.telefono) +'">' +
-    '<label>Correo (opcional)</label><input class="e_cor" type="email" inputmode="email" autocapitalize="off" value="'+ escapar(d.correo) +'">';
+function tarjetaPersona(rol, p, i){
+  var t = document.createElement('div');
+
+  if (p.estado === 'BAJA'){
+    t.className = 'tarjeta baja';
+    t.innerHTML =
+      '<div class="puesto">' + ETIQUETA[rol] + '</div>' +
+      '<div class="persona">' + escapar(p.nombre || 'Sin nombre') + '</div>' +
+      '<div class="marca-baja">Ya no está en el taller</div>';
+    var deshacer = document.createElement('button');
+    deshacer.type = 'button'; deshacer.className = 'btn quitar';
+    deshacer.textContent = '¿Te equivocaste? Presiona aquí para regresar a esta persona';
+    deshacer.onclick = function(){
+      p.estado = p.orden ? 'CONFIRMADO' : 'NUEVO';
+      p.revisado = false;
+      pintarDirectorio(); guardar();
+    };
+    t.appendChild(deshacer);
+    return t;
+  }
+
+  if (p.editando){
+    t.className = 'tarjeta pendiente';
+    t.innerHTML = '<div class="puesto">' + ETIQUETA[rol] + '</div>' +
+      '<label>Nombre completo</label><input class="e_nom" autocomplete="name" value="'+ escapar(p.nombre) +'" placeholder="Nombre y apellido">' +
+      '<label>Teléfono (10 dígitos)</label><input class="e_tel" type="tel" inputmode="numeric" maxlength="14" value="'+ escapar(p.telefono) +'" placeholder="4491234567">' +
+      '<label>Correo (opcional)</label><input class="e_cor" type="email" inputmode="email" autocapitalize="off" value="'+ escapar(p.correo) +'" placeholder="nombre@scania.com">';
+
+    var par = document.createElement('div'); par.className = 'par';
+    var ok = document.createElement('button');
+    ok.type = 'button'; ok.className = 'btn si'; ok.textContent = 'Guardar';
+    ok.onclick = function(){
+      var nom = limpio(t.querySelector('.e_nom').value);
+      var tel = limpio(t.querySelector('.e_tel').value);
+      if (!nom){ avisar('Falta el nombre.'); return; }
+      if (!telOk(tel)){ avisar('El teléfono debe tener 10 dígitos.'); return; }
+      var cambio = nom !== p.original.nombre || tel !== p.original.telefono;
+      p.nombre = nom; p.telefono = tel;
+      p.correo = limpio(t.querySelector('.e_cor').value);
+      p.estado = !p.orden ? 'NUEVO' : (cambio ? 'MODIFICADO' : 'CONFIRMADO');
+      p.revisado = true; p.editando = false;
+      pintarDirectorio(); guardar();
+    };
+    var cancelar = document.createElement('button');
+    cancelar.type = 'button'; cancelar.className = 'btn no'; cancelar.textContent = 'Cancelar';
+    cancelar.onclick = function(){
+      // Cancelar sobre alguien recién agregado lo quita: si no, quedaría
+      // una tarjeta vacía que después bloquea el botón de continuar.
+      if (!p.orden && !p.nombre){ datos.directorio[rol].splice(i,1); }
+      else { p.nombre = p.original.nombre; p.telefono = p.original.telefono;
+             p.correo = p.original.correo; p.editando = false; }
+      pintarDirectorio(); guardar();
+    };
+    par.appendChild(ok); par.appendChild(cancelar);
+    t.appendChild(par);
+    setTimeout(function(){ var e = t.querySelector('.e_nom'); if (e) e.focus(); }, 30);
+    return t;
+  }
+
+  t.className = 'tarjeta ' + (p.revisado ? 'listo' : 'pendiente');
+  t.innerHTML =
+    '<div class="puesto">' + ETIQUETA[rol] + (p.estado === 'NUEVO' ? ' · nuevo' : '') + '</div>' +
+    '<div class="persona">' + escapar(p.nombre) + '</div>' +
+    '<div class="dato">' + (p.telefono ? escapar(p.telefono) : '<span class="vacio">sin teléfono</span>') +
+      (p.correo ? ' · ' + escapar(p.correo) : '') + '</div>';
+
   var par = document.createElement('div'); par.className = 'par';
-  var ok = document.createElement('button'); ok.className='btn si'; ok.textContent='Guardar cambio';
-  ok.onclick = function(){
-    var nom = limpio(caja.querySelector('.e_nom').value);
-    var tel = limpio(caja.querySelector('.e_tel').value);
-    if (!nom){ avisar('Falta el nombre.'); return; }
-    if (!telOk(tel)){ avisar('El teléfono debe tener 10 dígitos.'); return; }
-    datos.directorio[rol] = {nombre:nom, telefono:tel, correo:limpio(caja.querySelector('.e_cor').value)};
-    datos.confirmado[rol] = true;
-    guardar(); pintarDirectorio();
+  var si = document.createElement('button');
+  si.type = 'button'; si.className = 'btn si';
+  si.textContent = p.revisado ? '✓ Listo' : 'Sí, sigue';
+  si.onclick = function(){
+    if (p.estado === 'CONFIRMADO' || p.estado === 'MODIFICADO' || p.estado === 'NUEVO'){
+      p.revisado = true; pintarDirectorio(); guardar();
+    }
   };
-  var cancelar = document.createElement('button'); cancelar.className='btn no'; cancelar.textContent='Cancelar';
-  cancelar.onclick = function(){ pintarDirectorio(); };
-  par.appendChild(ok); par.appendChild(cancelar);
-  caja.appendChild(par);
-  tarjeta.querySelector('.par').remove();
-  tarjeta.appendChild(caja);
-  caja.querySelector('.e_nom').focus();
+  var no = document.createElement('button');
+  no.type = 'button'; no.className = 'btn no'; no.textContent = 'Cambió';
+  no.onclick = function(){ p.editando = true; pintarDirectorio(); };
+  par.appendChild(si); par.appendChild(no);
+  t.appendChild(par);
+
+  var baja = document.createElement('button');
+  baja.type = 'button'; baja.className = 'btn texto';
+  baja.textContent = 'Esta persona ya no está en el taller';
+  baja.onclick = function(){
+    if (!p.orden){
+      // Nunca estuvo en el directorio: se quita y ya, no hay nada que dar
+      // de baja.
+      datos.directorio[rol].splice(i,1);
+    } else {
+      p.estado = 'BAJA'; p.revisado = true;
+    }
+    pintarDirectorio(); guardar();
+  };
+  t.appendChild(baja);
+  return t;
+}
+
+function tarjetaVacante(rol){
+  var t = document.createElement('div');
+  t.className = 'tarjeta vacante';
+  t.innerHTML =
+    '<div class="puesto">' + ETIQUETA[rol] + '</div>' +
+    '<div class="persona"><span class="vacio">Puesto sin cubrir</span></div>' +
+    '<div class="dato">No hay nadie registrado en este puesto.</div>';
+
+  if (rol === 'JEFE_TALLER'){
+    var nota = document.createElement('div');
+    nota.className = 'aviso error';
+    nota.style.marginTop = '12px'; nota.style.marginBottom = '0';
+    nota.textContent = 'Tiene que quedar al menos un jefe de taller: captura quién quedó a cargo.';
+    t.appendChild(nota);
+    return t;
+  }
+
+  var casilla = document.createElement('div');
+  casilla.className = 'casilla' + (datos.vacantes[rol] ? ' activa' : '');
+  casilla.innerHTML = '<div class="cuadro">' + (datos.vacantes[rol] ? '✓' : '') + '</div>' +
+    '<div class="txt">Sí, el puesto está vacante' +
+    '<small>Márcalo para poder continuar. Queda registrado como puesto por cubrir.</small></div>';
+  casilla.onclick = function(){
+    datos.vacantes[rol] = !datos.vacantes[rol];
+    pintarDirectorio(); guardar();
+  };
+  t.appendChild(casilla);
+  return t;
 }
 
 function escapar(s){
@@ -830,9 +1032,9 @@ function pintarNovedades(){
       '</select>' +
       '<label>Desde</label><input class="n_des" type="date" value="'+ escapar(n.desde) +'">' +
       '<label>Hasta (si aplica)</label><input class="n_has" type="date" value="'+ escapar(n.hasta) +'">' +
-      '<label>Quién lo cubre</label><input class="n_cub" value="'+ escapar(n.cubierto_por) +'" placeholder="Opcional">';
+      '<label>Quién lo cubre (obligatorio)</label><input class="n_cub" value="'+ escapar(n.cubierto_por) +'" placeholder="Nombre de quien cubre">';
     var quitar = document.createElement('button');
-    quitar.className = 'btn quitar'; quitar.textContent = 'Quitar esta persona';
+    quitar.className = 'btn quitar'; quitar.textContent = TXT_CORREGIR;
     quitar.onclick = function(){ datos.novedades.splice(i,1); pintarNovedades(); guardar(); };
     t.appendChild(quitar);
     t.addEventListener('input', function(){
@@ -846,14 +1048,6 @@ function pintarNovedades(){
     });
     c.appendChild(t);
   });
-}
-
-/* ---------------------------------------------------------------- */
-$('jefes_si').onclick = function(){ datos.mas_de_un_jefe = true;  pintarJefes(); guardar(); };
-$('jefes_no').onclick = function(){ datos.mas_de_un_jefe = false; pintarJefes(); guardar(); };
-function pintarJefes(){
-  $('jefes_si').className = 'btn ' + (datos.mas_de_un_jefe === true  ? 'si' : 'no');
-  $('jefes_no').className = 'btn ' + (datos.mas_de_un_jefe === false ? 'si' : 'no');
 }
 
 /* ---------------------------------------------------------------- */
@@ -874,7 +1068,8 @@ function pintarAsistencia(){
       '<input class="a_tel" type="tel" inputmode="numeric" maxlength="14" value="'+ escapar(tel) +'" placeholder="4491234567">';
     if (datos.asistencia_telefonos.length > 1){
       var quitar = document.createElement('button');
-      quitar.className = 'btn quitar'; quitar.textContent = 'Quitar este número';
+      quitar.className = 'btn quitar';
+      quitar.textContent = '¿Te equivocaste? Presiona aquí para quitar este número y corregir';
       quitar.onclick = function(){ datos.asistencia_telefonos.splice(i,1); pintarAsistencia(); guardar(); };
       t.appendChild(quitar);
     }
@@ -893,12 +1088,33 @@ function pintarResumen(){
   var r = $('resumen'); r.innerHTML = '';
   var filas = [];
   if (escalado) filas.push(['Jefe a cargo hoy', datos.jefe_del_dia.nombre]);
-  ROLES.forEach(function(rol){ filas.push([ETIQUETA[rol], datos.directorio[rol].nombre || '—']); });
+
+  ROLES.forEach(function(rol){
+    var activos = activosDe(rol);
+    var etiqueta = ETIQUETA[rol] + (activos.length > 1 ? ' (' + activos.length + ')' : '');
+    var valor = activos.length
+      ? activos.map(function(p){ return p.nombre; }).join(', ')
+      : 'puesto vacante';
+    filas.push([etiqueta, valor]);
+  });
+
+  // Solo se menciona el movimiento si de verdad lo hubo: en la mayoría de
+  // los ciclos no cambia nadie y un renglón fijo con "0 altas, 0 bajas"
+  // solo es ruido en la última pantalla.
+  var altas = [], bajas = [];
+  ROLES.forEach(function(rol){
+    (datos.directorio[rol] || []).forEach(function(p){
+      if (p.estado === 'BAJA') bajas.push(p.nombre);
+      else if (p.estado === 'NUEVO') altas.push(p.nombre);
+    });
+  });
+  if (altas.length) filas.push(['Se agregaron', altas.join(', ')]);
+  if (bajas.length) filas.push(['Ya no están', bajas.join(', ')]);
+
   filas.push(['Números de asistencia', datos.asistencia_telefonos.join(', ')]);
   filas.push(['Camionetas', datos.camionetas_totales + ' total · ' + datos.camionetas_fuera + ' fuera']);
   filas.push(['Técnicos activos', String(datos.tecnicos_activos)]);
   filas.push(['Novedades', datos.novedades.length ? datos.novedades.length + ' persona(s)' : 'ninguna']);
-  filas.push(['Más de un jefe', datos.mas_de_un_jefe ? 'Sí' : 'No']);
   filas.forEach(function(f){
     var d = document.createElement('div');
     d.innerHTML = '<span>' + escapar(f[0]) + '</span><span>' + escapar(f[1]) + '</span>';
@@ -924,8 +1140,10 @@ function enviar(){
     }
     var texto = {
       FALTA_JEFE_DEL_DIA:'Falta el jefe de taller a cargo hoy.',
-      FALTA_JEFE_TALLER:'Falta el nombre del jefe de taller.',
+      FALTA_JEFE_TALLER:'Tiene que quedar al menos un jefe de taller en el directorio.',
       FALTA_ASISTENCIA:'Captura al menos un número de asistencia.',
+      FALTA_PERSONA_NOVEDAD:'Falta el nombre de una persona en novedades.',
+      FALTA_QUIEN_CUBRE:'Falta indicar quién cubre a la persona ausente.',
       FUERA_MAYOR_QUE_TOTAL:'Hay más camionetas fuera de servicio que camionetas en total.',
       ENLACE_INVALIDO:'El enlace ya no es válido. Pide uno nuevo.',
       CICLO_CERRADO:'Esta ronda ya cerró. Avisa a Asistencia.'
@@ -960,7 +1178,7 @@ function enviarGuardia(){
       return;
     }
     var texto = {
-      FALTA_CALENDARIO:'Agrega al menos una persona con sus días de guardia.',
+      FALTA_GUARDIA:'Escribe quién cubre la guardia esta semana.',
       ENLACE_INVALIDO:'El enlace ya no es válido. Pide uno nuevo.',
       CICLO_CERRADO:'Esta semana ya cerró. Avisa a Asistencia.'
     }[r && r.error] || 'No se pudo enviar. Intenta otra vez en un momento.';
