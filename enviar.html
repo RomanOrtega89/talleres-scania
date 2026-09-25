@@ -32,6 +32,10 @@
     padding-bottom:calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px}
   .barra button{flex:1;border:0;border-radius:12px;padding:14px;font-weight:700;font-size:15px;
     background:var(--azul);color:#fff;font-family:inherit;cursor:pointer}
+  .etq{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    padding:3px 8px;border-radius:6px;background:#EEF1F5;color:var(--gris);margin-top:8px}
+  .etq.esc{background:#FFF0EF;color:#8C1710}
+  a.alt{display:block;margin-top:8px;text-align:center;font-size:13px;color:var(--gris);text-decoration:underline}
 </style>
 </head>
 <body>
@@ -95,20 +99,48 @@ function pintar(r){
       '<div class="vacia"><div class="marca">📭</div><p>No hay mensajes pendientes.</p></div>');
     return;
   }
+  var ETIQUETAS={INICIAL:'Primer mensaje',RECORDATORIO:'Recordatorio',PARCIAL:'Quedó a medias',
+    ESCALAMIENTO:'Escalamiento',GUARDIA_INICIAL:'Guardia',GUARDIA_RECORDATORIO:'Guardia · recordatorio'};
   r.pendientes.forEach(function(p){
     var d=document.createElement('div'); d.className='fila';
     d.innerHTML='<div class="taller">'+esc(p.taller)+'</div>'+
-                '<div class="quien">'+esc(p.destinatario||'')+' · '+esc(p.telefono)+'</div>';
+                '<div class="quien">'+esc(p.destinatario||'')+' · '+esc(p.telefono)+'</div>'+
+                (p.tipo?'<span class="etq'+(p.tipo==='ESCALAMIENTO'?' esc':'')+'">'+esc(ETIQUETAS[p.tipo]||p.tipo)+'</span>':'');
     var a=document.createElement('a');
     a.className='wa'; a.href=p.enlace; a.target='_blank'; a.rel='noopener';
     a.textContent='Enviar por WhatsApp';
     a.onclick=function(){
-      jsonp({a:'marcar', k:CLAVE, fila:p.fila}).catch(function(){});
+      marcar(p);
       d.className='fila listo'; a.textContent='Enviado ✓';
     };
     d.appendChild(a);
+    // Para el jefe que no puede abrir github.io (le sale "No se puede
+    // acceder a este sitio"): el mismo formulario, servido por Google.
+    if(p.enlace_alterno_whatsapp){
+      var alt=document.createElement('a');
+      alt.className='alt'; alt.href=p.enlace_alterno_whatsapp; alt.target='_blank'; alt.rel='noopener';
+      alt.textContent='¿No le abre el enlace? Mandar enlace alterno';
+      alt.onclick=function(){ marcar(p); d.className='fila listo'; a.textContent='Enviado ✓ (alterno)'; };
+      d.appendChild(alt);
+    }
     lista.appendChild(d);
   });
+}
+
+/* Marca el mensaje como enviado. Al tocar el botón, el teléfono se va a
+   WhatsApp de inmediato y la página se congela: una petición normal puede
+   quedarse a medias (por eso en el primer ciclo ningún mensaje quedó
+   marcado). sendBeacon está hecho justo para eso: el navegador la
+   termina de mandar aunque la página ya no esté en pantalla. */
+function marcar(p){
+  var carga={a:'marcar', k:CLAVE, fila:p.fila, id:p.id||''};
+  var enviado=false;
+  try{
+    if(navigator.sendBeacon){
+      enviado=navigator.sendBeacon(API, new Blob([JSON.stringify(carga)],{type:'text/plain;charset=utf-8'}));
+    }
+  }catch(e){}
+  if(!enviado){ jsonp(carga).catch(function(){}); }
 }
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){

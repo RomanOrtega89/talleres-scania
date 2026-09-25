@@ -298,6 +298,7 @@
 
 <div class="estado" id="estado"></div>
 
+<!--PARAMS-->
 <script>
 (function(){
 'use strict';
@@ -306,7 +307,12 @@
 /* Parámetros del enlace                                             */
 /* ---------------------------------------------------------------- */
 var qs = new URLSearchParams(location.search);
-var TOKEN = qs.get('t') || '';
+/* Cuando el formulario lo sirve Apps Script (enlace alterno, para quien no
+   puede abrir github.io), la página corre dentro de un marco de Google y no
+   ve su propia dirección: Apps Script le inyecta los parámetros aquí. */
+var PARAMS_INYECTADOS = window.__PARAMS__ || null;
+var TOKEN = (PARAMS_INYECTADOS && PARAMS_INYECTADOS.t) || qs.get('t') || '';
+var VERSION_FORMULARIO = '2026-09-25';
 /* La URL de la Web App puede venir en el enlace o quedar fija aquí. */
 /* URL de la Web App de Apps Script. Se edita UNA sola vez, aqui mismo,
    despues de publicar (menu Talleres -> 2. Ver enlaces del sistema).
@@ -314,7 +320,7 @@ var TOKEN = qs.get('t') || '';
    cargarla como parametro: queda mucho mas corto. El parametro ?api=
    sigue funcionando como respaldo manual (pruebas, enlaces viejos). */
 var API_FIJA = 'https://script.google.com/macros/s/AKfycbzX98R0d11Ingm-0k5uf7dnmOzUfSO8r9Bm7LX5E_qoN3dhTgv5_kAB0EjYkaPfHTEfQQ/exec';
-var API = qs.get('api') || API_FIJA;
+var API = (PARAMS_INYECTADOS && PARAMS_INYECTADOS.api) || qs.get('api') || API_FIJA;
 
 var ROLES = ['JEFE_TALLER','COORDINADOR','GERENTE_SERVICIO','GERENTE_REGIONAL'];
 var ETIQUETA = {
@@ -360,14 +366,21 @@ var $ = function(id){ return document.getElementById(id); };
 /* Transporte: POST simple y, si falla, JSONP                        */
 /* ---------------------------------------------------------------- */
 function llamar(accion, cuerpo){
-  var carga = Object.assign({a:accion, t:TOKEN}, cuerpo || {});
+  var carga = Object.assign({a:accion, t:TOKEN, v:VERSION_FORMULARIO}, cuerpo || {});
+  // Tiempo límite: una red colgada no puede dejar el botón en "Enviando…"
+  // para siempre. Si se acaba, se intenta por la segunda vía (JSONP). Si
+  // el primer intento sí había llegado, el servidor lo reconoce y no
+  // duplica la respuesta.
+  var control = (typeof AbortController === 'function') ? new AbortController() : null;
+  var reloj = setTimeout(function(){ if (control) control.abort(); }, 30000);
   return fetch(API, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},  // evita el preflight CORS
     body: JSON.stringify(carga),
-    redirect:'follow'
-  }).then(function(r){ return r.json(); })
-    .catch(function(){ return jsonp(carga); });
+    redirect:'follow',
+    signal: control ? control.signal : undefined
+  }).then(function(r){ clearTimeout(reloj); return r.json(); })
+    .catch(function(){ clearTimeout(reloj); return jsonp(carga); });
 }
 
 function jsonp(carga){
@@ -401,6 +414,52 @@ function avisar(texto, ms){
 function soloDigitos(v){ return String(v||'').replace(/\D/g,''); }
 function telOk(v){ var d = soloDigitos(v); return d.length===10 || (d.length===12 && d.indexOf('52')===0); }
 function limpio(v){ return String(v==null?'':v).trim(); }
+function correoOk(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim()); }
+
+/** Quita acentos y pasa a minúsculas, para comparar nombres. */
+function plano(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+
+/** Parecido entre dos palabras, de 0 a 1 (1 = iguales). */
+function parecido(a, b){
+  if (a === b) return 1;
+  var m = a.length, n = b.length;
+  if (!m || !n) return 0;
+  var prev = [], cur = [], i, j;
+  for (j = 0; j <= n; j++) prev[j] = j;
+  for (i = 1; i <= m; i++){
+    cur = [i];
+    for (j = 1; j <= n; j++){
+      cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return 1 - prev[n] / Math.max(m, n);
+}
+
+/**
+ * ¿Es la misma persona escrita distinto? ("Diego Gonzalez" / "Diego
+ * González Diéguez"; "Arón Sánchez" / "José Aarón Sánchez Mendoza").
+ * Cada palabra del nombre corto tiene que parecerse a alguna del largo.
+ */
+function mismaPersona(a, b){
+  var ta = plano(a).split(/\s+/).filter(function(x){ return x.length > 1; });
+  var tb = plano(b).split(/\s+/).filter(function(x){ return x.length > 1; });
+  if (!ta.length || !tb.length) return false;
+  var corto = ta.length <= tb.length ? ta : tb, largo = corto === ta ? tb : ta;
+  return corto.every(function(x){
+    return largo.some(function(y){ return parecido(x, y) >= 0.8; });
+  });
+}
+
+/** Resalta un campo dentro de una tarjeta. */
+function marcarEn(tarjeta, selector){
+  var e = tarjeta.querySelector(selector);
+  if (!e) return;
+  e.classList.add('mal'); e.focus();
+  setTimeout(function(){ e.classList.remove('mal'); }, 2500);
+}
 
 var MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio',
   'agosto','septiembre','octubre','noviembre','diciembre'];
@@ -439,9 +498,14 @@ function guardarLocal(){
   }catch(e){}
 }
 var pendienteRemoto = null;
+var yaEnviado = false;
 function guardarRemoto(){
   clearTimeout(pendienteRemoto);
+  // Nada de autoguardado mientras se envia o despues de enviar: un borrador
+  // que llega al servidor despues del envio ya no sirve de nada.
+  if (yaEnviado || enviando || enviandoGuardia) return;
   pendienteRemoto = setTimeout(function(){
+    if (yaEnviado || enviando || enviandoGuardia) return;
     if (familiaActual === 'GUARDIA'){
       llamar('parcial', {d:datosGuardia, pct:porcentajeGuardia()}).catch(function(){});
     } else {
@@ -776,6 +840,23 @@ function personaDirectorio(c){
 }
 
 /**
+ * Persona agregada con "+ Agregar". Tiene que nacer con `original` (vacío):
+ * el botón Guardar compara contra él para saber si algo cambió, y sin él
+ * tronaba en silencio -- el jefe tocaba Guardar y no pasaba nada. Fue el
+ * "no me deja guardar al tercer jefe de taller" del primer ciclo.
+ */
+function personaNueva(){
+  return {orden:null, nombre:'', telefono:'', correo:'',
+    original:{nombre:'', telefono:'', correo:''},
+    estado:'NUEVO', revisado:false, editando:true};
+}
+
+/** `original` de una persona, aunque venga de un borrador viejo que no lo traía. */
+function originalDe(p){
+  return p.original || {nombre:'', telefono:'', correo:''};
+}
+
+/**
  * Deja el directorio en la forma que espera esta versión del formulario.
  *
  * Hace falta porque un borrador guardado con la versión anterior traía un
@@ -788,10 +869,24 @@ function normalizarDirectorio(r){
   ROLES.forEach(function(rol){
     var v = datos.directorio ? datos.directorio[rol] : null;
     if (Array.isArray(v)){
-      datos.directorio[rol] = v.map(function(p){
-        if (!p || !p.original){
-          p = personaDirectorio(p);
+      datos.directorio[rol] = v.filter(function(p){
+        // Una tarjeta nueva que se quedó vacía (por ejemplo, la que dejó el
+        // error de Guardar del primer ciclo) no es una persona: se descarta
+        // en vez de reaparecer como un jefe sin nombre.
+        return p && (limpio(p.nombre) || limpio(p.telefono) || p.orden);
+      }).map(function(p){
+        if (!p.original){
+          // Se completa lo que falta, pero se respeta lo que la persona ya
+          // había decidido (nueva, baja, revisada...).
+          p.original = p.orden
+            ? {nombre:p.nombre||'', telefono:p.telefono||'', correo:p.correo||''}
+            : {nombre:'', telefono:'', correo:''};
+          if (!p.estado) p.estado = p.orden ? 'CONFIRMADO' : 'NUEVO';
+          if (typeof p.revisado !== 'boolean') p.revisado = false;
         }
+        // Nadie queda "editando" al volver a abrir: la tarjeta se muestra
+        // normal y se revisa de nuevo.
+        if (p.editando && limpio(p.nombre)){ p.editando = false; p.revisado = false; }
         return p;
       });
     } else if (v && typeof v === 'object'){
@@ -842,8 +937,7 @@ function pintarDirectorio(){
     mas.textContent = '+ Agregar ' + (activos.length ? 'otro ' : '') + ETIQUETA[rol];
     mas.onclick = function(){
       datos.directorio[rol] = (datos.directorio[rol] || []);
-      datos.directorio[rol].push({orden:null, nombre:'', telefono:'', correo:'',
-        estado:'NUEVO', revisado:false, editando:true});
+      datos.directorio[rol].push(personaNueva());
       datos.vacantes[rol] = false;
       pintarDirectorio(); guardar();
     };
@@ -887,11 +981,24 @@ function tarjetaPersona(rol, p, i){
     ok.onclick = function(){
       var nom = limpio(t.querySelector('.e_nom').value);
       var tel = limpio(t.querySelector('.e_tel').value);
-      if (!nom){ avisar('Falta el nombre.'); return; }
-      if (!telOk(tel)){ avisar('El teléfono debe tener 10 dígitos.'); return; }
-      var cambio = nom !== p.original.nombre || tel !== p.original.telefono;
-      p.nombre = nom; p.telefono = tel;
-      p.correo = limpio(t.querySelector('.e_cor').value);
+      var cor = limpio(t.querySelector('.e_cor').value);
+      var orig = originalDe(p);
+      if (!nom){ avisar('Falta el nombre.'); marcarEn(t, '.e_nom'); return; }
+      if (!telOk(tel)){ avisar('El teléfono debe tener 10 dígitos.'); marcarEn(t, '.e_tel'); return; }
+      if (cor && !correoOk(cor)){ avisar('El correo no se ve bien. Revísalo o bórralo.'); marcarEn(t, '.e_cor'); return; }
+      // Caso real del primer ciclo: se cambió el nombre del gerente por el
+      // de otra persona y se quedó el correo del anterior. Si el nombre ya
+      // no se parece y el correo sigue igual, se pide corregirlo.
+      if (orig.nombre && cor && cor.toLowerCase() === String(orig.correo||'').toLowerCase() &&
+          !mismaPersona(nom, orig.nombre)){
+        avisar('Cambiaste el nombre, pero el correo sigue siendo el de ' + orig.nombre +
+          '. Escribe el correo de ' + nom.split(' ')[0] + ' o déjalo vacío.', 5200);
+        marcarEn(t, '.e_cor');
+        return;
+      }
+      var cambio = nom !== orig.nombre || soloDigitos(tel).slice(-10) !== soloDigitos(orig.telefono).slice(-10) ||
+                   cor.toLowerCase() !== String(orig.correo||'').toLowerCase();
+      p.nombre = nom; p.telefono = tel; p.correo = cor;
       p.estado = !p.orden ? 'NUEVO' : (cambio ? 'MODIFICADO' : 'CONFIRMADO');
       p.revisado = true; p.editando = false;
       pintarDirectorio(); guardar();
@@ -902,8 +1009,9 @@ function tarjetaPersona(rol, p, i){
       // Cancelar sobre alguien recién agregado lo quita: si no, quedaría
       // una tarjeta vacía que después bloquea el botón de continuar.
       if (!p.orden && !p.nombre){ datos.directorio[rol].splice(i,1); }
-      else { p.nombre = p.original.nombre; p.telefono = p.original.telefono;
-             p.correo = p.original.correo; p.editando = false; }
+      else { var o = originalDe(p);
+             if (p.orden){ p.nombre = o.nombre; p.telefono = o.telefono; p.correo = o.correo; }
+             p.editando = false; }
       pintarDirectorio(); guardar();
     };
     par.appendChild(ok); par.appendChild(cancelar);
@@ -1126,12 +1234,14 @@ var enviando = false;
 function enviar(){
   if (enviando) return;
   enviando = true;
+  clearTimeout(pendienteRemoto);
   datos.comentarios = limpio($('comentarios').value);
   var b = $('btnSeguir'); b.disabled = true; b.textContent = 'Enviando…';
   $('avisoEnvio').classList.add('oculto');
 
   llamar('enviar', {d:datos}).then(function(r){
     if (r && r.ok){
+      yaEnviado = true;
       try{ localStorage.removeItem(LLAVE); }catch(e){}
       $('finTexto').textContent = r.mensaje || 'Gracias. Ya no recibirás más recordatorios de este ciclo.';
       ir('p_fin');
@@ -1146,7 +1256,8 @@ function enviar(){
       FALTA_QUIEN_CUBRE:'Falta indicar quién cubre a la persona ausente.',
       FUERA_MAYOR_QUE_TOTAL:'Hay más camionetas fuera de servicio que camionetas en total.',
       ENLACE_INVALIDO:'El enlace ya no es válido. Pide uno nuevo.',
-      CICLO_CERRADO:'Esta ronda ya cerró. Avisa a Asistencia.'
+      CICLO_CERRADO:'Esta ronda ya cerró. Avisa a Asistencia.',
+      OCUPADO:'El sistema está ocupado en este momento. Espera unos segundos y vuelve a tocar Enviar.'
     }[r && r.error] || 'No se pudo enviar. Intenta otra vez en un momento.';
     fallo(texto);
   }).catch(function(){
@@ -1166,11 +1277,13 @@ var enviandoGuardia = false;
 function enviarGuardia(){
   if (enviandoGuardia) return;
   enviandoGuardia = true;
+  clearTimeout(pendienteRemoto);
   var b = $('btnSeguir'); b.disabled = true; b.textContent = 'Enviando…';
   $('avisoGuardiaEnvio').classList.add('oculto');
 
   llamar('enviar', {d:datosGuardia}).then(function(r){
     if (r && r.ok){
+      yaEnviado = true;
       try{ localStorage.removeItem(LLAVE); }catch(e){}
       $('finTexto').textContent = r.mensaje || 'Gracias. Quedó registrado el calendario de guardias.';
       ir('p_fin');
@@ -1180,7 +1293,8 @@ function enviarGuardia(){
     var texto = {
       FALTA_GUARDIA:'Escribe quién cubre la guardia esta semana.',
       ENLACE_INVALIDO:'El enlace ya no es válido. Pide uno nuevo.',
-      CICLO_CERRADO:'Esta semana ya cerró. Avisa a Asistencia.'
+      CICLO_CERRADO:'Esta semana ya cerró. Avisa a Asistencia.',
+      OCUPADO:'El sistema está ocupado en este momento. Espera unos segundos y vuelve a tocar Enviar.'
     }[r && r.error] || 'No se pudo enviar. Intenta otra vez en un momento.';
     falloGuardia(texto);
   }).catch(function(){
@@ -1198,6 +1312,39 @@ function falloGuardia(texto){
 
 /* Guarda al salir de la pantalla, por si cierran el navegador. */
 document.addEventListener('visibilitychange', function(){ if (document.hidden) guardarLocal(); });
+
+/* ---------------------------------------------------------------- */
+/* Red de seguridad                                                  */
+/* ---------------------------------------------------------------- */
+/* Si algo truena, la persona tiene que enterarse (antes el botón
+   simplemente no hacía nada) y tú también: el error se manda al servidor
+   y queda en la hoja Errores_Formulario con la pantalla y el taller. */
+var erroresReportados = 0;
+function reportarError(mensaje, origen){
+  try { guardarLocal(); } catch (e) {}
+  try {
+    avisar('Algo falló en esta pantalla. Lo que capturaste está guardado: ' +
+      'recarga la página e intenta otra vez.', 6500);
+  } catch (e) {}
+  if (erroresReportados >= 5) return;          // no inundar el servidor
+  erroresReportados++;
+  try {
+    llamar('log', {
+      nivel: 'ERROR',
+      mensaje: String(mensaje || '').substring(0, 500),
+      origen: String(origen || '').substring(0, 300),
+      pantalla: (pasos && pasos[indice]) || '',
+      agente: String(navigator.userAgent || '').substring(0, 250)
+    }).catch(function(){});
+  } catch (e) {}
+}
+window.addEventListener('error', function(ev){
+  reportarError(ev.message, (ev.filename || '') + ':' + (ev.lineno || '') + ':' + (ev.colno || ''));
+});
+window.addEventListener('unhandledrejection', function(ev){
+  var r = ev.reason;
+  reportarError((r && r.message) || r, 'promesa');
+});
 
 arrancar();
 })();
